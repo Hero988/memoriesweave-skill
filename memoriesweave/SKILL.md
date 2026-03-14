@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.3.0
+  version: 1.4.0
   author: Hero988
 ---
 
@@ -198,6 +198,15 @@ curl "$BASE_URL/workspaces/{wsId}/photos?tag=couple&limit=50" \
 - **Combine tag search with date range** for best results: `?tag=selfie&dateFrom=...&dateTo=...`
 
 Useful tags for finding relationship photos: `couple`, `selfie`, `portrait`, `romantic`, `joyful`, `traveling`, `vacation`, `celebrating`
+
+### Using Specific Photo IDs
+
+If the user provides a specific photo ID (e.g. `jh7dr9t5x4921j296wp1dm92ex829b89`), use it directly — no need to search. The user can copy a photo ID from the website by hovering over a photo and clicking the copy button, or by opening the photo lightbox where the ID is displayed.
+
+```bash
+# Get a specific photo by ID
+curl "$BASE_URL/photos/{photoId}" -H "Authorization: Bearer $KEY"
+```
 
 ### General Selection Rules
 
