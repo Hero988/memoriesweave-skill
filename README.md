@@ -4,13 +4,34 @@ AI agent skill for [MemoriesWeave](https://memoriesweave.com) — create beautif
 
 ## Installation
 
-### Claude Code
+### Claude Code (recommended)
+
+Add the skill to your project with one command:
+
 ```bash
-npx skillsadd Hero988/memoriesweave-skill
+curl -sL https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/SKILL.md -o .claude/SKILL.md
+```
+
+Or if you prefer, add a reference to your `CLAUDE.md`:
+
+```markdown
+## Skills
+See [MemoriesWeave API Skill](.claude/SKILL.md) for photo memory collection management.
+```
+
+### Cursor / Copilot / Other Agents
+
+Copy `SKILL.md` into your project root or your agent's context directory:
+
+```bash
+# Clone and copy
+git clone https://github.com/Hero988/memoriesweave-skill.git
+cp memoriesweave-skill/SKILL.md /path/to/your/project/.cursor/SKILL.md
 ```
 
 ### Manual
-Copy `SKILL.md` into your project root or `.claude/` directory.
+
+Download [`SKILL.md`](SKILL.md) and place it wherever your AI agent reads context files from.
 
 ## What This Skill Enables
 
