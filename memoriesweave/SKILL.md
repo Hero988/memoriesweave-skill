@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   author: Hero988
 ---
 
@@ -179,6 +179,42 @@ curl "$BASE_URL/memories/{memoryId}/snapshots" -H "Authorization: Bearer $KEY"
 curl -X POST "$BASE_URL/memories/{memoryId}/snapshots/{snapshotId}/restore" \
   -H "Authorization: Bearer $KEY"
 ```
+
+## CRITICAL: Visual Verification — Always Check Your Work
+
+Before telling the user you're done, you MUST take a screenshot to verify your design looks correct. Also take a screenshot BEFORE starting edits to understand what you're working with.
+
+### Take a screenshot of any page:
+```bash
+curl "$APP_URL/api/screenshot?memoryId={memoryId}&page={pageNum}" \
+  -H "Authorization: Bearer $KEY"
+```
+
+**App URL:** `https://memoriesweave.com` (or the deployed Next.js URL)
+
+Returns:
+```json
+{
+  "data": {
+    "screenshotUrl": "https://...",
+    "page": 1,
+    "totalPages": 10,
+    "width": 1320,
+    "height": 2868
+  }
+}
+```
+
+The `screenshotUrl` is a JPEG image you can view to verify the design.
+
+### Required verification workflow:
+
+1. **Before editing:** Take a screenshot of the page(s) you're about to change — understand what you're looking at
+2. **After editing:** Take a screenshot of the changed page(s) — verify it looks correct
+3. **Fix issues:** If something looks wrong (text cut off, photo not loading, layout broken), fix it and screenshot again
+4. **Only then** tell the user you're done
+
+This ensures quality and catches rendering issues before the user sees them.
 
 ## Photo Selection Best Practices
 
