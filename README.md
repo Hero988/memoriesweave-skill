@@ -6,9 +6,14 @@ AI agent skill for [MemoriesWeave](https://memoriesweave.com) — create beautif
 
 ### Claude Code
 
+**Git Bash / macOS / Linux:**
 ```bash
-# One-liner: download skill directly to Claude Code's skills directory
 mkdir -p ~/.claude/skills/memoriesweave && curl -sL https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/memoriesweave/SKILL.md -o ~/.claude/skills/memoriesweave/SKILL.md
+```
+
+**PowerShell (Windows):**
+```powershell
+mkdir -p ~/.claude/skills/memoriesweave; curl -sL https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/memoriesweave/SKILL.md -o ~/.claude/skills/memoriesweave/SKILL.md
 ```
 
 The skill auto-loads in every Claude Code session. Verify with: "What skills are available?"
