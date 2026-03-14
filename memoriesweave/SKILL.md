@@ -129,6 +129,12 @@ curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY
 
 **Always unlock when done**, even if an error occurred.
 
+## Product-specific rules
+
+**Wall calendars** MUST always have exactly **14 pages**: cover + 12 months (Jan-Dec) + back page. Each month page needs a correct calendar grid with proper day-of-week starts. Dimensions: `3772x5250px`. Never use duplicate photos across pages. Every photo on relationship months must show the people (not food, scenery, or screenshots).
+
+**Phone wallpapers** support up to 10 pages. Each page is a standalone wallpaper at the device's resolution.
+
 ## Photo selection rules
 
 1. **Always check conversation context** around candidate photos before selecting them.
