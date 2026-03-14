@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.5.0
+  version: 1.6.0
   author: Hero988
 ---
 
@@ -179,6 +179,29 @@ curl "$BASE_URL/memories/{memoryId}/snapshots" -H "Authorization: Bearer $KEY"
 curl -X POST "$BASE_URL/memories/{memoryId}/snapshots/{snapshotId}/restore" \
   -H "Authorization: Bearer $KEY"
 ```
+
+## Resizing a Memory
+
+When resizing page dimensions, you MUST update BOTH the HTML and the memory's `digitalFormat` so the website's resize dialog reflects the correct size.
+
+```bash
+# 1. Resize the HTML (replace width/height in all data-mw-page divs, scale fonts/padding proportionally)
+# 2. Push both the resized HTML AND the new digitalFormat in a single PATCH:
+curl -X PATCH "$BASE_URL/memories/{memoryId}" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customHtml": "<resized HTML>",
+    "digitalFormat": {
+      "category": "phone_wallpaper",
+      "widthPx": 1170,
+      "heightPx": 2532,
+      "outputFormat": "png"
+    }
+  }'
+```
+
+If the target size isn't a standard preset (e.g. a custom resolution), use `"category": "custom"`.
 
 ## CRITICAL: Visual Verification — Always Check Your Work
 
