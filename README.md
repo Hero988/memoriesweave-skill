@@ -4,34 +4,17 @@ AI agent skill for [MemoriesWeave](https://memoriesweave.com) — create beautif
 
 ## Installation
 
-### Claude Code (recommended)
+```bash
+npx skills add Hero988/memoriesweave-skill
+```
 
-Add the skill to your project with one command:
+This works with Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, and [40+ other agents](https://skills.sh).
+
+### Install globally (available in all projects)
 
 ```bash
-curl -sL https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/SKILL.md -o .claude/SKILL.md
+npx skills add -g Hero988/memoriesweave-skill
 ```
-
-Or if you prefer, add a reference to your `CLAUDE.md`:
-
-```markdown
-## Skills
-See [MemoriesWeave API Skill](.claude/SKILL.md) for photo memory collection management.
-```
-
-### Cursor / Copilot / Other Agents
-
-Copy `SKILL.md` into your project root or your agent's context directory:
-
-```bash
-# Clone and copy
-git clone https://github.com/Hero988/memoriesweave-skill.git
-cp memoriesweave-skill/SKILL.md /path/to/your/project/.cursor/SKILL.md
-```
-
-### Manual
-
-Download [`SKILL.md`](SKILL.md) and place it wherever your AI agent reads context files from.
 
 ## What This Skill Enables
 
@@ -57,7 +40,7 @@ Once installed, your AI agent can:
 ## API Reference
 
 - **Interactive docs:** https://memoriesweave.com/docs/api
-- **OpenAPI spec:** [assets/openapi.json](assets/openapi.json) (also at https://memoriesweave.com/api/openapi.json)
+- **OpenAPI spec:** Bundled in [memoriesweave/assets/openapi.json](memoriesweave/assets/openapi.json)
 - **Base URL:** `https://grandiose-loris-729.convex.site/api/v1`
 
 ## Pricing

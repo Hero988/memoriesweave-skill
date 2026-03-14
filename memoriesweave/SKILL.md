@@ -1,11 +1,9 @@
 ---
 name: memoriesweave
-version: 1.0.0
-description: |
-  Create beautiful photo memory collections with AI on MemoriesWeave.
-  Upload photos, design AI layouts, add captions, export as digital
-  files or print products.
-tags: [photos, memories, ai-design, print]
+description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
+metadata:
+  version: 1.0.0
+  author: Hero988
 ---
 
 # MemoriesWeave API Skill
