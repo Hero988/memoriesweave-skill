@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   author: Hero988
 ---
 
@@ -10,25 +10,37 @@ metadata:
 
 Create and manage photo memory collections programmatically using the MemoriesWeave API. You design the HTML layouts yourself — the API gives you access to photos, conversations, workspace context, and people data.
 
-## Setup
+## IMPORTANT: How to Call the API
 
-1. Create an account at https://memoriesweave.com
-2. Go to Settings > API Keys (https://memoriesweave.com/settings/api)
-3. Create a new API key and copy it
-4. Set the environment variable: `export MEMORIESWEAVE_API_KEY=mw_sk_your_key_here`
+**ALWAYS use `curl` via the Bash tool to call the API.** Do NOT use WebFetch, fetch(), or any other HTTP tool — they will fail due to redirects and auth header issues. Every API call must be made with curl like this:
 
-## Authentication
-
-All requests require a Bearer token:
-```
-Authorization: Bearer mw_sk_your_key_here
+```bash
+curl -s "https://grandiose-loris-729.eu-west-1.convex.site/api/v1/ENDPOINT" \
+  -H "Authorization: Bearer API_KEY_HERE"
 ```
 
-## Base URL
+**Do NOT use the website URL (memoriesweave.com) for API calls.** The API is hosted on the Convex site URL, not the Next.js app.
+
+## Base URL (use this EXACT URL for all API calls)
 
 ```
 https://grandiose-loris-729.eu-west-1.convex.site/api/v1
 ```
+
+## Screenshot URL (only this one uses the website domain)
+
+```
+https://www.memoriesweave.com/api/screenshot
+```
+
+## Authentication
+
+All requests require a Bearer token in the Authorization header:
+```
+Authorization: Bearer mw_sk_your_key_here
+```
+
+The user will provide their API key when they ask you to use this skill.
 
 ## CRITICAL: Required Workflow — Always Gather Context First
 
