@@ -73,6 +73,19 @@ curl -s "$API/workspaces/{wsId}/conversations/by-photo/{photoId}" -H "Authorizat
 
 **Tags are AI-generated and may be inaccurate.** Use them as a first filter, then verify with conversation context. Do not rely on tags alone.
 
+**Pagination:** If a search doesn't return enough results, check `meta.hasMore` in the response. If `true`, use the `cursor` value to fetch the next batch:
+
+```bash
+# First request
+curl -s "$API/workspaces/{wsId}/photos?tag=couple&limit=50" -H "Authorization: Bearer $KEY"
+# Response includes: "meta": { "cursor": "abc123", "hasMore": true }
+
+# Get next batch using cursor
+curl -s "$API/workspaces/{wsId}/photos?tag=couple&limit=50&cursor=abc123" -H "Authorization: Bearer $KEY"
+```
+
+Keep paginating until you find what you need or `hasMore` is `false`.
+
 ### Step 5: Choose the correct format
 
 ```bash
