@@ -24,7 +24,17 @@ The user provides their API key (format: `mw_sk_<32hex>`) when requesting this s
 
 Follow these steps in order. Do not skip steps.
 
-### Step 1: Gather context
+### Step 1: Lock the memory FIRST
+
+The VERY FIRST API call must be locking the memory. Do this before gathering context, before reading HTML, before anything else. This shows a loading animation on the user's screen immediately.
+
+```bash
+curl -s -X POST "$API/memories/{memoryId}/lock" -H "Authorization: Bearer $KEY"
+```
+
+If creating a new memory (no memory ID yet), lock it immediately after creation.
+
+### Step 2: Gather context
 
 ```bash
 # Get workspace list
@@ -35,14 +45,6 @@ curl -s "$API/workspaces/{wsId}/context" -H "Authorization: Bearer $KEY"
 
 # Get registered people (names, roles, descriptions)
 curl -s "$API/workspaces/{wsId}/persons" -H "Authorization: Bearer $KEY"
-```
-
-### Step 2: Lock the memory
-
-Before making ANY changes, lock the memory. This shows a loading animation on the user's screen.
-
-```bash
-curl -s -X POST "$API/memories/{memoryId}/lock" -H "Authorization: Bearer $KEY"
 ```
 
 ### Step 3: Save a "before" snapshot
