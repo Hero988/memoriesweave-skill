@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.1.0
+  version: 1.2.0
   author: Hero988
 ---
 
@@ -139,6 +139,47 @@ curl -X PATCH "$BASE_URL/memories/{memoryId}" \
   -d '{"customHtml": "<your HTML here>"}'
 ```
 
+### Step 7: ALWAYS Save a Snapshot After Creating or Changing a Memory
+
+**This is MANDATORY.** Every time you create a new memory and push HTML, or modify an existing memory, you MUST save a snapshot so the user can restore previous versions.
+
+**After creating a new memory:**
+```bash
+curl -X POST "$BASE_URL/memories/{memoryId}/snapshots" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "Initial design — 10-page iPhone wallpapers"}'
+```
+
+**Before modifying an existing memory:**
+```bash
+# 1. Save a "before" snapshot
+curl -X POST "$BASE_URL/memories/{memoryId}/snapshots" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "Before update — original 10-page design"}'
+
+# 2. Make your changes
+curl -X PATCH "$BASE_URL/memories/{memoryId}" ...
+
+# 3. Save an "after" snapshot
+curl -X POST "$BASE_URL/memories/{memoryId}/snapshots" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "After update — added new pages"}'
+```
+
+**List snapshots:**
+```bash
+curl "$BASE_URL/memories/{memoryId}/snapshots" -H "Authorization: Bearer $KEY"
+```
+
+**Restore a previous version:**
+```bash
+curl -X POST "$BASE_URL/memories/{memoryId}/snapshots/{snapshotId}/restore" \
+  -H "Authorization: Bearer $KEY"
+```
+
 ## Photo Selection Best Practices
 
 1. **Always check conversation context** for candidate photos before selecting them
@@ -199,7 +240,8 @@ Query params for listing: `cursor`, `limit` (max 100), `status`, `source`, `tag`
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
 | GET | `/memories/:id/snapshots` | Version history |
-| POST | `/memories/:id/snapshots` | Create snapshot |
+| POST | `/memories/:id/snapshots` | Create snapshot (ALWAYS do this after create/before edit) |
+| POST | `/memories/:id/snapshots/:snapId/restore` | Restore a previous version |
 
 ### Conversations
 | Method | Path | Description |
