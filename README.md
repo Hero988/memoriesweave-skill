@@ -4,50 +4,40 @@ AI agent skill for [MemoriesWeave](https://memoriesweave.com) — create beautif
 
 ## Installation
 
+### Claude Code
+
+```bash
+# One-liner: download skill directly to Claude Code's skills directory
+mkdir -p ~/.claude/skills/memoriesweave && curl -sL https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/memoriesweave/SKILL.md -o ~/.claude/skills/memoriesweave/SKILL.md
+```
+
+The skill auto-loads in every Claude Code session. Verify with: "What skills are available?"
+
+### Other Agents (Cursor, Codex, Gemini CLI, Copilot, etc.)
+
 ```bash
 npx skills add Hero988/memoriesweave-skill
 ```
 
-This works with Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot, and [40+ other agents](https://skills.sh).
+Works with 40+ agents via [skills.sh](https://skills.sh).
 
-### Install globally (available in all projects)
+## Usage
 
-```bash
-npx skills add -g Hero988/memoriesweave-skill
-```
+Provide your API key when asking the agent to use MemoriesWeave:
 
-## What This Skill Enables
-
-Once installed, your AI agent can:
-
-- **List and browse** your photo library and workspaces
-- **Create memories** — new photo collections with titles and descriptions
-- **Design layouts** — chat with AI to generate custom HTML layouts
-- **Fill content** — AI selects photos and writes captions automatically
-- **Manage versions** — create and restore snapshots
-- **Order prints** — browse products, design POD items, generate print files
-- **Search conversations** — query imported WhatsApp chat history
+> Please use the memoriesweave skill with API key: mw_sk_your_key_here to create a phone wallpaper memory
 
 ## Setup
 
 1. Create an account at [memoriesweave.com](https://memoriesweave.com)
 2. Go to **Settings > API Keys** and create a new key
-3. Set the environment variable:
-   ```bash
-   export MEMORIESWEAVE_API_KEY=mw_sk_your_key_here
-   ```
+3. Provide the key to the agent when requesting this skill
 
 ## API Reference
 
 - **Interactive docs:** https://memoriesweave.com/docs/api
-- **OpenAPI spec:** Bundled in [memoriesweave/assets/openapi.json](memoriesweave/assets/openapi.json)
-- **Base URL:** `https://grandiose-loris-729.convex.site/api/v1`
-
-## Pricing
-
-- CRUD operations (list, get, create, update, delete) are **free**
-- AI operations (design, content, captioning) consume **credits** (1 credit = $1 USD)
-- Same credit pool as the website
+- **OpenAPI spec:** Bundled in `memoriesweave/assets/openapi.json`
+- **Base URL:** `https://grandiose-loris-729.eu-west-1.convex.site/api/v1`
 
 ## License
 
