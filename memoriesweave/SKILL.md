@@ -81,6 +81,29 @@ curl -s "$API/digital-formats" -H "Authorization: Bearer $KEY"
 
 Common formats: Phone Wallpaper (1170x2532 iPhone 13, 1320x2868 iPhone 16 Pro Max), Desktop (3840x2160), Social Post (1080x1080).
 
+### Step 5b: VERIFY every photo before using it
+
+Before including ANY photo in your design, you MUST verify it exists and get its actual data by calling:
+
+```bash
+curl -s "$API/photos/{photoId}" -H "Authorization: Bearer $KEY"
+```
+
+**NEVER fabricate, guess, or construct photo URLs.** Every photo URL must come from an actual API response (`urls.original`, `urls.medium`, or `urls.thumbnail`). If a photo search returns no results for a month, report that to the user — do not invent URLs.
+
+**Verification checklist for every photo:**
+1. You received the photo ID from the API (not made up)
+2. You called `GET /photos/{photoId}` and got a valid response
+3. The `dateTaken` field matches the month you're placing it on
+4. The `tags` or photo content matches what you expect (couple/selfie/andrea etc.)
+5. The `urls.original` URL is what you're putting in the HTML
+
+If the API returns empty results for a time period, try different search strategies:
+- Search by `tag=couple`, `tag=selfie`, `tag=andrea` without date range
+- Then filter results by `dateTaken` in your code
+- Try broader date ranges
+- If truly no photos exist for a month, tell the user
+
 ### Step 6: Design HTML and push
 
 Design self-contained HTML with inline styles. For multi-page memories, wrap each page in `<div data-mw-page="N">`.
@@ -101,14 +124,29 @@ curl -s -X PATCH "$API/memories/{memoryId}" \
   -d '{"customHtml": "...", "digitalFormat": {"category": "phone_wallpaper", "widthPx": 1170, "heightPx": 2532, "outputFormat": "png"}}'
 ```
 
-### Step 7: Take a screenshot to verify
+### Step 7: Verify ALL images load, then screenshot
+
+Before screenshotting, verify that every image URL in your HTML actually loads. Extract all image URLs from your HTML and spot-check at least 3 by fetching them:
+
+```bash
+curl -sI "https://pub-....r2.dev/photos/.../photo.jpg" | head -1
+# Should return: HTTP/2 200 (not 404 or 403)
+```
+
+If any return 404, you used a fabricated or wrong URL — go back to Step 5b and fix it.
+
+Then take screenshots to verify the design:
 
 ```bash
 curl -s "https://www.memoriesweave.com/api/screenshot?memoryId={memoryId}&page=1" \
   -H "Authorization: Bearer $KEY"
 ```
 
-Returns `{ "data": { "screenshotUrl": "https://..." } }`. Download and view the screenshot to verify the design looks correct. Fix any issues before proceeding.
+Returns `{ "data": { "screenshotUrl": "https://..." } }`. Download and view the screenshot. Check that:
+- All photos are visible (no broken image icons)
+- Photos show the correct people/content
+- No duplicate-looking photos on the same page
+- Text is readable and correctly positioned
 
 ### Step 8: Save an "after" snapshot
 
