@@ -146,6 +146,7 @@ curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY
 7. **No duplicate photos across ANY pages** — not just by URL, but by content. Photos taken within seconds of each other (burst shots, slightly different angles of the same scene) count as duplicates. Check the `fileName` timestamps — if two photos have timestamps within 10 seconds, they are from the same moment.
 8. **Cover and back pages must use unique photos** not used on any month page.
 9. **Each month's photos must be from that actual month.** Check the `dateTaken` timestamp. Do not use April photos on the August page.
+10. **Use the earliest occurrence of a photo.** Photos in WhatsApp are sometimes resent months later. The `dateTaken` field reflects when the photo was originally taken, NOT when it was shared in the chat. When filtering by date range, a photo taken in July may appear in a December conversation chunk because it was resent. Always use `dateTaken` to determine which month a photo belongs to — if `dateTaken` says July, it goes on the July page, never December, even if it was found in a December conversation search.
 
 ## Photo URLs
 
