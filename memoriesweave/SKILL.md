@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.2.0
+  version: 1.3.0
   author: Hero988
 ---
 
@@ -182,8 +182,27 @@ curl -X POST "$BASE_URL/memories/{memoryId}/snapshots/{snapshotId}/restore" \
 
 ## Photo Selection Best Practices
 
+### Using the Tag System (AI-generated — use as a guide, not gospel)
+
+All photos have AI-generated tags (e.g., `"couple"`, `"selfie"`, `"traveling"`, `"andrea"`). You can filter by tag via the API:
+
+```bash
+curl "$BASE_URL/workspaces/{wsId}/photos?tag=couple&limit=50" \
+  -H "Authorization: Bearer $KEY"
+```
+
+**IMPORTANT:** Tags are AI-generated and may be inaccurate. Use them as a **first filter** to narrow down candidates, but always:
+- **Verify by checking conversation context** around each candidate photo
+- **Don't assume a "couple" tag means the right couple** — it could be other people
+- **Don't exclude photos missing expected tags** — a great couple photo might only be tagged "selfie" or "joyful" without "couple"
+- **Combine tag search with date range** for best results: `?tag=selfie&dateFrom=...&dateTo=...`
+
+Useful tags for finding relationship photos: `couple`, `selfie`, `portrait`, `romantic`, `joyful`, `traveling`, `vacation`, `celebrating`
+
+### General Selection Rules
+
 1. **Always check conversation context** for candidate photos before selecting them
-2. **Prefer photos tagged with people names** (e.g., "andrea", "suliman", "couple", "selfie")
+2. **Use tags as a starting point** — filter by `couple`, `selfie`, person names, then verify
 3. **Prefer portrait orientation** for phone wallpapers (height > width)
 4. **Avoid** photos tagged: food, screenshot, meme, document, sticker (unless specifically requested)
 5. **Use medium URLs** for displaying in designs (optimized for web)
