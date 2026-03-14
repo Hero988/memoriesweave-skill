@@ -143,6 +143,9 @@ curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY
 4. **Avoid** tags: `food`, `screenshot`, `meme`, `document`, `sticker`, `illustration` (unless requested).
 5. **Prefer portrait orientation** (height > width) for phone wallpapers.
 6. Use `urls.original` for high-resolution output, `urls.medium` for web display.
+7. **No duplicate photos across ANY pages** — not just by URL, but by content. Photos taken within seconds of each other (burst shots, slightly different angles of the same scene) count as duplicates. Check the `fileName` timestamps — if two photos have timestamps within 10 seconds, they are from the same moment.
+8. **Cover and back pages must use unique photos** not used on any month page.
+9. **Each month's photos must be from that actual month.** Check the `dateTaken` timestamp. Do not use April photos on the August page.
 
 ## Photo URLs
 
