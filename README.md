@@ -13,7 +13,7 @@ mkdir -p ~/.claude/skills/memoriesweave && curl -sL https://raw.githubuserconten
 
 **PowerShell (Windows):**
 ```powershell
-mkdir -p ~/.claude/skills/memoriesweave; curl -sL https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/memoriesweave/SKILL.md -o ~/.claude/skills/memoriesweave/SKILL.md
+New-Item -ItemType Directory -Force -Path "$HOME/.claude/skills/memoriesweave" | Out-Null; Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Hero988/memoriesweave-skill/main/memoriesweave/SKILL.md" -OutFile "$HOME/.claude/skills/memoriesweave/SKILL.md"
 ```
 
 The skill auto-loads in every Claude Code session. Verify with: "What skills are available?"
