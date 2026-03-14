@@ -1,417 +1,225 @@
 ---
 name: memoriesweave
-description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
-metadata:
-  version: 1.8.0
-  author: Hero988
+description: Creates and manages photo memory collections on MemoriesWeave via its REST API. Use when the user mentions MemoriesWeave, memory collections, photo wallpapers, photo books, or wants to create/edit digital memories or print products using the MemoriesWeave API. Do not use for general photo editing, image generation, or non-MemoriesWeave tasks.
 ---
 
-# MemoriesWeave API Skill
+# MemoriesWeave API
 
-Create and manage photo memory collections programmatically using the MemoriesWeave API. You design the HTML layouts yourself — the API gives you access to photos, conversations, workspace context, and people data.
+Provides programmatic access to MemoriesWeave — a platform for creating photo memory collections with custom HTML layouts. The agent designs HTML layouts and pushes them to memories. The API provides photos, conversations, workspace context, and people data.
 
-## IMPORTANT: How to Call the API
+## How to call the API
 
-**ALWAYS use `curl` via the Bash tool to call the API.** Do NOT use WebFetch, fetch(), or any other HTTP tool — they will fail due to redirects and auth header issues. Every API call must be made with curl like this:
-
-```bash
-curl -s "https://grandiose-loris-729.eu-west-1.convex.site/api/v1/ENDPOINT" \
-  -H "Authorization: Bearer API_KEY_HERE"
-```
-
-**Do NOT use the website URL (memoriesweave.com) for API calls.** The API is hosted on the Convex site URL, not the Next.js app.
-
-## Base URL (use this EXACT URL for all API calls)
-
-```
-https://grandiose-loris-729.eu-west-1.convex.site/api/v1
-```
-
-## Screenshot URL (only this one uses the website domain)
-
-```
-https://www.memoriesweave.com/api/screenshot
-```
-
-## Authentication
-
-All requests require a Bearer token in the Authorization header:
-```
-Authorization: Bearer mw_sk_your_key_here
-```
-
-The user will provide their API key when they ask you to use this skill.
-
-## CRITICAL: Required Workflow — Always Gather Context First
-
-Before creating any memory or selecting any photos, you MUST follow this workflow:
-
-### Step 1: Get Workspace Context
-Fetch the workspace description, relationship info, and general instructions. This tells you WHO the people are, what their relationship is, and how the user wants content presented.
+**ALWAYS use `curl` via the Bash tool.** Do not use WebFetch, fetch(), or any other HTTP client — they fail due to redirects and auth header stripping.
 
 ```bash
-curl "$BASE_URL/workspaces/{wsId}/context" -H "Authorization: Bearer $KEY"
+API="https://grandiose-loris-729.eu-west-1.convex.site/api/v1"
+KEY="<user-provided-api-key>"
+
+curl -s "$API/ENDPOINT" -H "Authorization: Bearer $KEY"
 ```
 
-Returns:
-```json
-{
-  "data": {
-    "description": "Photos with my relationship with Andrea...",
-    "relationshipInfo": "Suliman and Andrea - boyfriend and girlfriend until 30/01/2026...",
-    "generalInstructions": "Always mention Andrea and Suliman if you see them..."
-  }
-}
-```
+The user provides their API key (format: `mw_sk_<32hex>`) when requesting this skill.
 
-### Step 2: Get Registered People
-Fetch the people registered in the workspace with their roles and descriptions.
+## Workflow: Creating or editing a memory
+
+Follow these steps in order. Do not skip steps.
+
+### Step 1: Gather context
 
 ```bash
-curl "$BASE_URL/workspaces/{wsId}/persons" -H "Authorization: Bearer $KEY"
+# Get workspace list
+curl -s "$API/workspaces" -H "Authorization: Bearer $KEY"
+
+# Get workspace context (who the people are, relationship info, instructions)
+curl -s "$API/workspaces/{wsId}/context" -H "Authorization: Bearer $KEY"
+
+# Get registered people (names, roles, descriptions)
+curl -s "$API/workspaces/{wsId}/persons" -H "Authorization: Bearer $KEY"
 ```
 
-Returns:
-```json
-{
-  "data": [
-    { "id": "...", "name": "Andrea", "role": "Girlfriend now ex girlfriend best friend", "description": "Girlfriend until 30/01/2026..." },
-    { "id": "...", "name": "Suliman", "role": "Boyfriend...", "description": "..." }
-  ]
-}
-```
+### Step 2: Lock the memory
 
-### Step 3: Select Photos WITH Conversation Context
-When selecting photos for a memory, do NOT just look at tags. For each candidate photo, check the conversation context around it to understand what was happening when it was shared.
+Before making ANY changes, lock the memory. This shows a loading animation on the user's screen.
 
 ```bash
-# Get conversations around a specific photo
-curl "$BASE_URL/workspaces/{wsId}/conversations/by-photo/{photoId}" \
+curl -s -X POST "$API/memories/{memoryId}/lock" -H "Authorization: Bearer $KEY"
+```
+
+### Step 3: Save a "before" snapshot
+
+```bash
+curl -s -X POST "$API/memories/{memoryId}/snapshots" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "Before edit — description of planned change"}'
+```
+
+### Step 4: Select photos
+
+Use tag filtering as a starting point, then verify with conversation context.
+
+```bash
+# Filter by tag (e.g. couple, selfie, portrait, traveling)
+curl -s "$API/workspaces/{wsId}/photos?tag=couple&limit=50" -H "Authorization: Bearer $KEY"
+
+# If user provides a photo ID, fetch it directly
+curl -s "$API/photos/{photoId}" -H "Authorization: Bearer $KEY"
+
+# Get conversation context around a photo (what was happening when it was shared)
+curl -s "$API/workspaces/{wsId}/conversations/by-photo/{photoId}" -H "Authorization: Bearer $KEY"
+```
+
+**Tags are AI-generated and may be inaccurate.** Use them as a first filter, then verify with conversation context. Do not rely on tags alone.
+
+### Step 5: Choose the correct format
+
+```bash
+curl -s "$API/digital-formats" -H "Authorization: Bearer $KEY"
+```
+
+Common formats: Phone Wallpaper (1170x2532 iPhone 13, 1320x2868 iPhone 16 Pro Max), Desktop (3840x2160), Social Post (1080x1080).
+
+### Step 6: Design HTML and push
+
+Design self-contained HTML with inline styles. For multi-page memories, wrap each page in `<div data-mw-page="N">`.
+
+```bash
+curl -s -X PATCH "$API/memories/{memoryId}" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"customHtml": "<div data-mw-page=\"1\" style=\"width:1170px;height:2532px;...\">...</div>"}'
+```
+
+When resizing, include `digitalFormat` in the same PATCH:
+
+```bash
+curl -s -X PATCH "$API/memories/{memoryId}" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"customHtml": "...", "digitalFormat": {"category": "phone_wallpaper", "widthPx": 1170, "heightPx": 2532, "outputFormat": "png"}}'
+```
+
+### Step 7: Take a screenshot to verify
+
+```bash
+curl -s "https://www.memoriesweave.com/api/screenshot?memoryId={memoryId}&page=1" \
   -H "Authorization: Bearer $KEY"
 ```
 
-This returns the WhatsApp messages before and after the photo was shared, giving you context about the moment — who was there, what they were talking about, the emotional context.
+Returns `{ "data": { "screenshotUrl": "https://..." } }`. Download and view the screenshot to verify the design looks correct. Fix any issues before proceeding.
 
-### Step 4: Choose the Right Digital Format
-Before creating the memory, check available formats with their dimensions:
-
-```bash
-curl "$BASE_URL/digital-formats" -H "Authorization: Bearer $KEY"
-```
-
-**Common formats with multi-page support:**
-| Format | Dimensions | Max Pages |
-|--------|-----------|-----------|
-| Phone Wallpaper (iPhone 16 Pro Max) | 1320x2868 | 10 |
-| Phone Wallpaper (iPhone 15 Pro) | 1290x2796 | 10 |
-| Desktop Wallpaper (4K UHD) | 3840x2160 | 8 |
-| Social Media Post (Instagram) | 1080x1080 | 10 |
-| Story/Reel (Instagram/TikTok) | 1080x1920 | 12 |
-| Greeting Card | 1920x1280 | 4 |
-| Photo Collage | 3000x3000 | 6 |
-
-### Step 5: Create Memory with Format
-Create the memory with the correct digital format and page count:
+### Step 8: Save an "after" snapshot
 
 ```bash
-curl -X POST "$BASE_URL/workspaces/{wsId}/memories" \
+curl -s -X POST "$API/memories/{memoryId}/snapshots" \
   -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "Summer Memories",
-    "description": "Our summer adventures together",
-    "digitalFormat": {
-      "category": "phone_wallpaper",
-      "widthPx": 1290,
-      "heightPx": 2796,
-      "outputFormat": "png",
-      "pageCount": 8
-    }
-  }'
+  -d '{"label": "After edit — description of what changed"}'
 ```
 
-### Step 6: Design and Push HTML
-You design the HTML yourself. Each page should be wrapped in a `<div data-mw-page="N">` element. The HTML must be self-contained with inline styles.
+### Step 9: Unlock the memory
 
-For multi-page memories, structure as:
-```html
-<div data-mw-page="1" style="width:1290px;height:2796px;position:relative;overflow:hidden;">
-  <!-- Page 1 content with photo background, text overlays, etc. -->
-</div>
-<div data-mw-page="2" style="width:1290px;height:2796px;position:relative;overflow:hidden;">
-  <!-- Page 2 content -->
-</div>
-```
-
-Push the HTML to the memory:
-```bash
-curl -X PATCH "$BASE_URL/memories/{memoryId}" \
-  -H "Authorization: Bearer $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"customHtml": "<your HTML here>"}'
-```
-
-### Step 7: ALWAYS Save a Snapshot After Creating or Changing a Memory
-
-**This is MANDATORY.** Every time you create a new memory and push HTML, or modify an existing memory, you MUST save a snapshot so the user can restore previous versions.
-
-**After creating a new memory:**
-```bash
-curl -X POST "$BASE_URL/memories/{memoryId}/snapshots" \
-  -H "Authorization: Bearer $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"label": "Initial design — 10-page iPhone wallpapers"}'
-```
-
-**Before modifying an existing memory:**
-```bash
-# 1. Save a "before" snapshot
-curl -X POST "$BASE_URL/memories/{memoryId}/snapshots" \
-  -H "Authorization: Bearer $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"label": "Before update — original 10-page design"}'
-
-# 2. Make your changes
-curl -X PATCH "$BASE_URL/memories/{memoryId}" ...
-
-# 3. Save an "after" snapshot
-curl -X POST "$BASE_URL/memories/{memoryId}/snapshots" \
-  -H "Authorization: Bearer $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"label": "After update — added new pages"}'
-```
-
-**List snapshots:**
-```bash
-curl "$BASE_URL/memories/{memoryId}/snapshots" -H "Authorization: Bearer $KEY"
-```
-
-**Restore a previous version:**
-```bash
-curl -X POST "$BASE_URL/memories/{memoryId}/snapshots/{snapshotId}/restore" \
-  -H "Authorization: Bearer $KEY"
-```
-
-## CRITICAL: Lock/Unlock Memory While Working
-
-Before making ANY changes to a memory, you MUST lock it first. This shows a loading animation on the user's screen so they know the AI is working. Unlock it when you're completely done (after snapshots).
+This removes the loading animation from the user's screen.
 
 ```bash
-# 1. FIRST — Lock the memory (shows loading overlay on frontend)
-curl -X POST "$BASE_URL/memories/{memoryId}/lock" \
-  -H "Authorization: Bearer $KEY"
-
-# 2. Do your work (edit HTML, resize, etc.)
-# 3. Save snapshots
-# 4. LAST — Unlock the memory (removes loading overlay)
-curl -X POST "$BASE_URL/memories/{memoryId}/unlock" \
-  -H "Authorization: Bearer $KEY"
+curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY"
 ```
 
-**Always unlock when done**, even if an error occurs. The user sees a loading animation until you unlock.
+**Always unlock when done**, even if an error occurred.
 
-### Copying Memory IDs
+## Photo selection rules
 
-Users can now copy a memory's ID from the memories list page by hovering over a memory card and clicking the copy button (top-right corner). If the user provides a memory ID, use it directly.
-
-## Resizing a Memory
-
-When resizing page dimensions, you MUST update BOTH the HTML and the memory's `digitalFormat` so the website's resize dialog reflects the correct size.
-
-```bash
-# 1. Resize the HTML (replace width/height in all data-mw-page divs, scale fonts/padding proportionally)
-# 2. Push both the resized HTML AND the new digitalFormat in a single PATCH:
-curl -X PATCH "$BASE_URL/memories/{memoryId}" \
-  -H "Authorization: Bearer $KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customHtml": "<resized HTML>",
-    "digitalFormat": {
-      "category": "phone_wallpaper",
-      "widthPx": 1170,
-      "heightPx": 2532,
-      "outputFormat": "png"
-    }
-  }'
-```
-
-If the target size isn't a standard preset (e.g. a custom resolution), use `"category": "custom"`.
-
-## CRITICAL: Visual Verification — Always Check Your Work
-
-Before telling the user you're done, you MUST take a screenshot to verify your design looks correct. Also take a screenshot BEFORE starting edits to understand what you're working with.
-
-### Take a screenshot of any page:
-```bash
-curl "$APP_URL/api/screenshot?memoryId={memoryId}&page={pageNum}" \
-  -H "Authorization: Bearer $KEY"
-```
-
-**App URL:** `https://memoriesweave.com` (or the deployed Next.js URL)
-
-Returns:
-```json
-{
-  "data": {
-    "screenshotUrl": "https://...",
-    "page": 1,
-    "totalPages": 10,
-    "width": 1320,
-    "height": 2868
-  }
-}
-```
-
-The `screenshotUrl` is a JPEG image you can view to verify the design.
-
-### Required verification workflow:
-
-1. **Before editing:** Take a screenshot of the page(s) you're about to change — understand what you're looking at
-2. **After editing:** Take a screenshot of the changed page(s) — verify it looks correct
-3. **Fix issues:** If something looks wrong (text cut off, photo not loading, layout broken), fix it and screenshot again
-4. **Only then** tell the user you're done
-
-This ensures quality and catches rendering issues before the user sees them.
-
-## Photo Selection Best Practices
-
-### Using the Tag System (AI-generated — use as a guide, not gospel)
-
-All photos have AI-generated tags (e.g., `"couple"`, `"selfie"`, `"traveling"`, `"andrea"`). You can filter by tag via the API:
-
-```bash
-curl "$BASE_URL/workspaces/{wsId}/photos?tag=couple&limit=50" \
-  -H "Authorization: Bearer $KEY"
-```
-
-**IMPORTANT:** Tags are AI-generated and may be inaccurate. Use them as a **first filter** to narrow down candidates, but always:
-- **Verify by checking conversation context** around each candidate photo
-- **Don't assume a "couple" tag means the right couple** — it could be other people
-- **Don't exclude photos missing expected tags** — a great couple photo might only be tagged "selfie" or "joyful" without "couple"
-- **Combine tag search with date range** for best results: `?tag=selfie&dateFrom=...&dateTo=...`
-
-Useful tags for finding relationship photos: `couple`, `selfie`, `portrait`, `romantic`, `joyful`, `traveling`, `vacation`, `celebrating`
-
-### Using Specific Photo IDs
-
-If the user provides a specific photo ID (e.g. `jh7dr9t5x4921j296wp1dm92ex829b89`), use it directly — no need to search. The user can copy a photo ID from the website by hovering over a photo and clicking the copy button, or by opening the photo lightbox where the ID is displayed.
-
-```bash
-# Get a specific photo by ID
-curl "$BASE_URL/photos/{photoId}" -H "Authorization: Bearer $KEY"
-```
-
-### General Selection Rules
-
-1. **Always check conversation context** for candidate photos before selecting them
-2. **Use tags as a starting point** — filter by `couple`, `selfie`, person names, then verify
-3. **Prefer portrait orientation** for phone wallpapers (height > width)
-4. **Avoid** photos tagged: food, screenshot, meme, document, sticker (unless specifically requested)
-5. **Use medium URLs** for displaying in designs (optimized for web)
-6. **Use original URLs** for high-resolution outputs
-7. **Check the dateTaken** field to ensure photos are from the requested time period
+1. **Always check conversation context** around candidate photos before selecting them.
+2. **If user provides a photo ID**, use it directly via `GET /photos/{photoId}`.
+3. **Prefer** tags: `couple`, `selfie`, `portrait`, `andrea`, `suliman`, `romantic`, `joyful`, `traveling`.
+4. **Avoid** tags: `food`, `screenshot`, `meme`, `document`, `sticker`, `illustration` (unless requested).
+5. **Prefer portrait orientation** (height > width) for phone wallpapers.
+6. Use `urls.original` for high-resolution output, `urls.medium` for web display.
 
 ## Photo URLs
 
-Each photo has three URL variants:
-- `urls.thumbnail` — 300px wide WebP (for previews)
-- `urls.medium` — 800px wide WebP (for web display)
-- `urls.original` — Full resolution original (for print/export)
+Each photo has three variants:
+- `urls.thumbnail` — 300px wide WebP
+- `urls.medium` — 800px wide WebP
+- `urls.original` — Full resolution
 
-## Complete Endpoint Reference
+## Endpoint reference
 
 ### Account
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/me` | User info + plan |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/me` | User info and plan |
 | GET | `/me/credits` | Credit balance |
 | GET | `/me/usage` | Usage summary |
 
 ### Workspaces
-| Method | Path | Description |
-|--------|------|-------------|
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/workspaces` | List workspaces |
 | GET | `/workspaces/:id` | Workspace details |
-| GET | `/workspaces/:id/context` | Workspace AI context (description, relationship, instructions) |
+| GET | `/workspaces/:id/context` | AI context (description, relationship, instructions) |
 | GET | `/workspaces/:id/persons` | Registered people |
 
-### Digital Formats
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/digital-formats` | All format presets with dimensions |
-
 ### Photos
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/workspaces/:wsId/photos` | List photos (paginated, filterable) |
-| GET | `/photos/:id` | Photo details + URLs |
-| POST | `/workspaces/:wsId/photos` | Upload a photo |
-| PATCH | `/photos/:id` | Update metadata |
-| DELETE | `/photos/:id` | Trash a photo |
-
-Query params for listing: `cursor`, `limit` (max 100), `status`, `source`, `tag`, `dateFrom`, `dateTo`
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/workspaces/:wsId/photos` | List photos. Params: `cursor`, `limit`, `tag`, `dateFrom`, `dateTo` |
+| GET | `/photos/:id` | Single photo details and URLs |
+| PATCH | `/photos/:id` | Update caption or tags |
 
 ### Memories
-| Method | Path | Description |
-|--------|------|-------------|
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/workspaces/:wsId/memories` | List memories |
 | GET | `/memories/:id` | Memory details |
-| POST | `/workspaces/:wsId/memories` | Create memory (with optional digitalFormat) |
-| PATCH | `/memories/:id` | Update title, description, or customHtml |
+| POST | `/workspaces/:wsId/memories` | Create memory. Body: `title`, `description`, optional `digitalFormat` |
+| PATCH | `/memories/:id` | Update `title`, `description`, `customHtml`, or `digitalFormat` |
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
-| GET | `/memories/:id/snapshots` | Version history |
-| POST | `/memories/:id/lock` | Lock memory (show AI working overlay) |
-| POST | `/memories/:id/unlock` | Unlock memory (remove overlay) |
-| POST | `/memories/:id/snapshots` | Create snapshot (ALWAYS do this after create/before edit) |
+| POST | `/memories/:id/lock` | Show AI working overlay on frontend |
+| POST | `/memories/:id/unlock` | Remove AI working overlay |
+| GET | `/memories/:id/snapshots` | List version history |
+| POST | `/memories/:id/snapshots` | Create snapshot. Body: `{"label": "..."}` |
 | POST | `/memories/:id/snapshots/:snapId/restore` | Restore a previous version |
 
 ### Conversations
-| Method | Path | Description |
-|--------|------|-------------|
+| Method | Endpoint | Description |
+|--------|----------|-------------|
 | GET | `/workspaces/:wsId/conversations` | List chat chunks |
 | GET | `/workspaces/:wsId/conversations/search?start=TS&end=TS` | Search by date range |
 | GET | `/workspaces/:wsId/conversations/by-photo/:photoId` | Messages around a photo |
 
-### Sharing
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/memories/:id/shares` | Create share link |
-| GET | `/memories/:id/shares` | List shares |
-| DELETE | `/shares/:id` | Deactivate share |
-
-### Products (Physical/Print)
-| Method | Path | Description |
-|--------|------|-------------|
+### Formats and products
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/digital-formats` | All format presets with dimensions |
 | GET | `/products` | Print product catalog |
-| GET | `/products/:id` | Product details |
+
+### Screenshot (uses website domain, not API domain)
+| Method | URL | Description |
+|--------|-----|-------------|
+| GET | `https://www.memoriesweave.com/api/screenshot?memoryId=X&page=N` | Render page to JPEG |
 
 ## Pricing
 
-- **Free:** All GET endpoints, creating/updating/deleting resources, pushing HTML
-- **Credits:** AI operations only (design chat, content generation, photo captioning)
-- 1 credit = $1 USD, same pool as website
+- **Free:** All GET endpoints, CRUD operations, pushing HTML, snapshots, lock/unlock.
+- **Credits:** AI operations only (design chat, content generation, photo captioning via Trigger.dev pipeline). The agent designing HTML does not consume credits.
 
-## Rate Limits
+## Rate limits
 
-| Plan | General RPM | AI Ops/min |
-|------|------------|-----------|
+| Plan | Requests/min | AI ops/min |
+|------|-------------|-----------|
 | Free | 10 | 2 |
 | Starter | 30 | 5 |
 | Plus | 60 | 10 |
 | Pro | 120 | 20 |
 
-## Error Codes
+## Error codes
 
-| Code | Status | Description |
-|------|--------|-------------|
+| Code | Status | Meaning |
+|------|--------|---------|
 | `bad_request` | 400 | Invalid parameters |
-| `unauthorized` | 401 | Missing/invalid API key |
+| `unauthorized` | 401 | Missing or invalid API key |
 | `not_found` | 404 | Resource not found |
 | `rate_limited` | 429 | Too many requests |
 | `internal_error` | 500 | Server error |
-
-## Full API Reference
-
-- OpenAPI spec: https://memoriesweave.com/api/openapi.json
-- Interactive docs: https://memoriesweave.com/docs/api
