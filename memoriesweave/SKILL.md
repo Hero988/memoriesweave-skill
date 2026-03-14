@@ -2,7 +2,7 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.6.0
+  version: 1.7.0
   author: Hero988
 ---
 
@@ -180,6 +180,28 @@ curl -X POST "$BASE_URL/memories/{memoryId}/snapshots/{snapshotId}/restore" \
   -H "Authorization: Bearer $KEY"
 ```
 
+## CRITICAL: Lock/Unlock Memory While Working
+
+Before making ANY changes to a memory, you MUST lock it first. This shows a loading animation on the user's screen so they know the AI is working. Unlock it when you're completely done (after snapshots).
+
+```bash
+# 1. FIRST — Lock the memory (shows loading overlay on frontend)
+curl -X POST "$BASE_URL/memories/{memoryId}/lock" \
+  -H "Authorization: Bearer $KEY"
+
+# 2. Do your work (edit HTML, resize, etc.)
+# 3. Save snapshots
+# 4. LAST — Unlock the memory (removes loading overlay)
+curl -X POST "$BASE_URL/memories/{memoryId}/unlock" \
+  -H "Authorization: Bearer $KEY"
+```
+
+**Always unlock when done**, even if an error occurs. The user sees a loading animation until you unlock.
+
+### Copying Memory IDs
+
+Users can now copy a memory's ID from the memories list page by hovering over a memory card and clicking the copy button (top-right corner). If the user provides a memory ID, use it directly.
+
 ## Resizing a Memory
 
 When resizing page dimensions, you MUST update BOTH the HTML and the memory's `digitalFormat` so the website's resize dialog reflects the correct size.
@@ -327,6 +349,8 @@ Query params for listing: `cursor`, `limit` (max 100), `status`, `source`, `tag`
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
 | GET | `/memories/:id/snapshots` | Version history |
+| POST | `/memories/:id/lock` | Lock memory (show AI working overlay) |
+| POST | `/memories/:id/unlock` | Unlock memory (remove overlay) |
 | POST | `/memories/:id/snapshots` | Create snapshot (ALWAYS do this after create/before edit) |
 | POST | `/memories/:id/snapshots/:snapId/restore` | Restore a previous version |
 
