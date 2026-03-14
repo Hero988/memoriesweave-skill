@@ -1,0 +1,2802 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MemoriesWeave API",
+    "version": "1.0.0",
+    "description": "Public API for MemoriesWeave — create beautiful shareable memory collections from photos and WhatsApp chat exports with AI-generated captions and custom HTML designs.",
+    "contact": {
+      "name": "MemoriesWeave Support",
+      "url": "https://memoriesweave.com/support"
+    },
+    "license": {
+      "name": "Proprietary"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://grandiose-loris-729.convex.site/api/v1",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    { "name": "Account", "description": "Current user account, credits, and usage" },
+    { "name": "Workspaces", "description": "Workspace management" },
+    { "name": "Photos", "description": "Photo upload, metadata, and AI processing" },
+    { "name": "Memories", "description": "Memory collections and snapshots" },
+    { "name": "Design & Content", "description": "Async AI design and content generation (returns jobId)" },
+    { "name": "Products", "description": "Print-on-demand product catalog" },
+    { "name": "POD", "description": "Print-on-demand design, content, and print file generation" },
+    { "name": "Conversations", "description": "WhatsApp conversation chunks and search" },
+    { "name": "Sharing", "description": "Memory share links" },
+    { "name": "Jobs", "description": "Async job tracking and cancellation" }
+  ],
+  "paths": {
+    "/me": {
+      "get": {
+        "operationId": "get_me",
+        "summary": "Get current user info and plan",
+        "tags": ["Account"],
+        "responses": {
+          "200": {
+            "description": "Current user profile and subscription plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "id": "usr_abc123",
+                    "email": "jane@example.com",
+                    "name": "Jane Doe",
+                    "avatarUrl": "https://img.clerk.com/avatar.jpg",
+                    "plan": "pro",
+                    "storageUsedBytes": 524288000,
+                    "storageLimitBytes": 10737418240,
+                    "createdAt": "2026-01-15T10:30:00Z"
+                  },
+                  "meta": {
+                    "rateLimit": { "limit": 60, "remaining": 58, "resetAt": "2026-03-14T12:01:00Z" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/me/credits": {
+      "get": {
+        "operationId": "get_my_credits",
+        "summary": "Get credit balance",
+        "tags": ["Account"],
+        "responses": {
+          "200": {
+            "description": "Current credit balance breakdown",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/CreditBalance" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "subscriptionCredits": 5.20,
+                    "topUpCredits": 2.00,
+                    "totalCredits": 7.20,
+                    "subscriptionResetsAt": "2026-04-01T00:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/me/usage": {
+      "get": {
+        "operationId": "get_my_usage",
+        "summary": "Get usage summary",
+        "tags": ["Account"],
+        "responses": {
+          "200": {
+            "description": "Usage summary for current billing period",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/UsageSummary" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "periodStart": "2026-03-01T00:00:00Z",
+                    "periodEnd": "2026-04-01T00:00:00Z",
+                    "creditsUsed": 4.80,
+                    "photosProcessed": 142,
+                    "memoriesGenerated": 6,
+                    "apiCalls": 1023,
+                    "transactions": [
+                      {
+                        "id": "txn_001",
+                        "type": "debit",
+                        "amount": 0.15,
+                        "description": "AI captioning — 3 photos",
+                        "createdAt": "2026-03-14T09:12:00Z"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces": {
+      "get": {
+        "operationId": "list_workspaces",
+        "summary": "List workspaces",
+        "tags": ["Workspaces"],
+        "responses": {
+          "200": {
+            "description": "All workspaces owned by or shared with the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Workspace" }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "ws_abc123",
+                      "name": "Family Memories 2025",
+                      "photoCount": 347,
+                      "memoryCount": 4,
+                      "storageUsedBytes": 1073741824,
+                      "createdAt": "2026-01-20T08:00:00Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces/{wsId}": {
+      "get": {
+        "operationId": "get_workspace",
+        "summary": "Get workspace details",
+        "tags": ["Workspaces"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Workspace details including stats",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Workspace" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces/{wsId}/photos": {
+      "get": {
+        "operationId": "list_photos",
+        "summary": "List photos in a workspace (paginated)",
+        "tags": ["Photos"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque pagination cursor returned from a previous response",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of photos to return (1-100)",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by processing status",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "processing", "ready", "error"]
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "description": "Filter by photo source",
+            "schema": {
+              "type": "string",
+              "enum": ["upload", "whatsapp"]
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "description": "Filter by tag name (exact match)",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "description": "Include photos taken on or after this date (ISO 8601)",
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "description": "Include photos taken on or before this date (ISO 8601)",
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of photos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Photo" }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": "ph_abc123",
+                      "workspaceId": "ws_abc123",
+                      "r2Key": "photos/ws_abc123/ph_abc123.jpg",
+                      "url": "https://r2.memoriesweave.com/photos/ws_abc123/ph_abc123.jpg",
+                      "thumbnailUrl": "https://r2.memoriesweave.com/photos/ws_abc123/ph_abc123_thumb.webp",
+                      "caption": "Family picnic at the park",
+                      "dateTaken": "2025-07-04T14:30:00Z",
+                      "width": 4032,
+                      "height": 3024,
+                      "sizeBytes": 3145728,
+                      "status": "ready",
+                      "source": "upload",
+                      "tags": ["family", "outdoors", "summer"],
+                      "people": ["Jane", "Tom"],
+                      "createdAt": "2026-03-10T08:00:00Z"
+                    }
+                  ],
+                  "meta": {
+                    "cursor": "eyJpZCI6InBoX3h5ejc4OSJ9",
+                    "hasMore": true,
+                    "rateLimit": { "limit": 60, "remaining": 55, "resetAt": "2026-03-14T12:01:00Z" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "post": {
+        "operationId": "upload_photo",
+        "summary": "Upload a photo to a workspace",
+        "tags": ["Photos"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "Image file (JPEG, PNG, WebP, HEIC). Max 25 MB."
+                  },
+                  "dateTaken": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Override the date the photo was taken (ISO 8601)"
+                  },
+                  "tags": {
+                    "type": "string",
+                    "description": "Comma-separated list of tags to apply"
+                  },
+                  "caption": {
+                    "type": "string",
+                    "description": "Manual caption (skips AI captioning)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Photo uploaded successfully. Status will be 'pending' until processed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Photo" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/photos/{id}": {
+      "get": {
+        "operationId": "get_photo",
+        "summary": "Get photo details",
+        "tags": ["Photos"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Photo details including caption, tags, and people",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Photo" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "patch": {
+        "operationId": "update_photo",
+        "summary": "Update photo metadata",
+        "tags": ["Photos"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caption": {
+                    "type": "string",
+                    "description": "New caption text"
+                  },
+                  "dateTaken": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Corrected date taken"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Replace all tags with this list"
+                  },
+                  "people": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Replace all tagged people with this list"
+                  }
+                }
+              },
+              "example": {
+                "caption": "Summer barbecue with the whole family",
+                "tags": ["family", "summer", "food"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Photo updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Photo" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "delete": {
+        "operationId": "delete_photo",
+        "summary": "Move photo to trash",
+        "description": "Soft-deletes the photo by moving it to trash. It can be restored within 30 days.",
+        "tags": ["Photos"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Photo moved to trash",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "trashedAt": { "type": "string", "format": "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/photos/{id}/process": {
+      "post": {
+        "operationId": "process_photo",
+        "summary": "Trigger AI captioning for a photo",
+        "description": "Starts AI analysis and captioning. Costs credits based on the configured AI model. Returns a job ID to track progress.",
+        "tags": ["Photos"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "description": "AI model override (defaults to workspace setting)",
+                    "enum": ["gemini-3-flash", "gemini-3.1-flash-lite"]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Processing started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "jobId": "job_proc_abc123",
+                    "estimatedCredits": 0.05
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces/{wsId}/memories": {
+      "get": {
+        "operationId": "list_memories",
+        "summary": "List memories in a workspace",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of memories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Memory" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "post": {
+        "operationId": "create_memory",
+        "summary": "Create a new memory",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Memory title",
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Short description of the memory",
+                    "maxLength": 1000
+                  },
+                  "photoIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Photo IDs to include. If omitted, AI will select photos during generation."
+                  },
+                  "dateFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "Start date for photo selection range"
+                  },
+                  "dateTo": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "End date for photo selection range"
+                  }
+                }
+              },
+              "example": {
+                "title": "Summer 2025",
+                "description": "Our best moments from last summer",
+                "dateFrom": "2025-06-01",
+                "dateTo": "2025-08-31"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Memory created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Memory" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}": {
+      "get": {
+        "operationId": "get_memory",
+        "summary": "Get memory details",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memory details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Memory" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "patch": {
+        "operationId": "update_memory",
+        "summary": "Update memory metadata",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string", "maxLength": 200 },
+                  "description": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Memory updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Memory" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "delete": {
+        "operationId": "delete_memory",
+        "summary": "Delete a memory",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memory deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "deleted": { "type": "boolean", "const": true }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/html": {
+      "get": {
+        "operationId": "get_memory_html",
+        "summary": "Get rendered HTML for a memory",
+        "description": "Returns the fully rendered, self-contained HTML document for the memory. Suitable for iframe embedding or PDF generation.",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rendered HTML content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "html": {
+                              "type": "string",
+                              "description": "Self-contained HTML document"
+                            },
+                            "pageCount": {
+                              "type": "integer",
+                              "description": "Number of pages in the memory"
+                            },
+                            "lastGeneratedAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/snapshots": {
+      "get": {
+        "operationId": "list_snapshots",
+        "summary": "List snapshots for a memory",
+        "description": "Returns version history snapshots. Each snapshot captures the full HTML state at a point in time.",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of snapshots",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Snapshot" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "post": {
+        "operationId": "create_snapshot",
+        "summary": "Create a snapshot of the current memory state",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "Optional label for this snapshot",
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Snapshot created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Snapshot" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/snapshots/{snapId}/restore": {
+      "post": {
+        "operationId": "restore_snapshot",
+        "summary": "Restore a memory from a snapshot",
+        "description": "Replaces the current memory HTML with the snapshot's saved state. A new snapshot of the current state is automatically created before restoring.",
+        "tags": ["Memories"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" },
+          {
+            "name": "snapId",
+            "in": "path",
+            "required": true,
+            "description": "Snapshot ID to restore",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Memory restored to snapshot state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "restoredFromSnapshotId": { "type": "string" },
+                            "autoSnapshotId": {
+                              "type": "string",
+                              "description": "ID of the auto-created snapshot of the state before restore"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/design": {
+      "post": {
+        "operationId": "design_memory",
+        "summary": "Send a design chat message",
+        "description": "Sends a natural language message to the AI design assistant, which generates or iterates on the memory's HTML layout. Costs credits. Returns a job ID for tracking.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Design instruction in natural language",
+                    "maxLength": 5000
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "AI model to use for design generation",
+                    "enum": ["gemini-3.1-pro", "gpt-5.4", "claude-opus-4.6", "gemini-3-flash"]
+                  }
+                }
+              },
+              "example": {
+                "message": "Create a vintage scrapbook layout with 28 pages, warm earth tones, and handwritten-style fonts"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Design job started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "jobId": "job_design_abc123",
+                    "estimatedCredits": 0.35
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/design/approve": {
+      "post": {
+        "operationId": "approve_design",
+        "summary": "Approve the current design",
+        "description": "Locks in the current HTML template for content filling. After approval, use the content endpoints to populate the template with photos and text.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Design approved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "memoryId": { "type": "string" },
+                            "status": { "type": "string", "const": "design_approved" },
+                            "slotCount": {
+                              "type": "integer",
+                              "description": "Number of fillable slots in the approved template"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/content": {
+      "post": {
+        "operationId": "content_chat",
+        "summary": "Send a content chat message",
+        "description": "Sends a message to the AI content assistant for iterating on the memory's text content and photo placement. Costs credits. Returns a job ID.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Content instruction in natural language",
+                    "maxLength": 5000
+                  }
+                }
+              },
+              "example": {
+                "message": "Make the captions more poetic and add date references from the conversations"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Content job started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/generate": {
+      "post": {
+        "operationId": "generate_memory",
+        "summary": "Full memory generation",
+        "description": "Runs the complete generation pipeline: photo selection, template filling, and content generation in one step. Costs credits. Returns a job ID.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photoIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Explicit photo IDs. If omitted, AI selects photos based on memory settings."
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "AI model for content generation"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Generation started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "jobId": "job_gen_abc123",
+                    "estimatedCredits": 1.50
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pages/add": {
+      "post": {
+        "operationId": "add_pages",
+        "summary": "Add pages to a memory",
+        "description": "Generates and appends new pages to an existing memory. Costs credits. Returns a job ID.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["count"],
+                "properties": {
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "description": "Number of pages to add"
+                  },
+                  "instructions": {
+                    "type": "string",
+                    "description": "Natural language instructions for the new pages",
+                    "maxLength": 2000
+                  }
+                }
+              },
+              "example": {
+                "count": 4,
+                "instructions": "Add a section about our beach trip in July"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Page addition started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pages/edit": {
+      "post": {
+        "operationId": "edit_pages",
+        "summary": "Edit existing pages",
+        "description": "Edits content or layout of existing pages via natural language instructions. Costs credits. Returns a job ID.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["instructions"],
+                "properties": {
+                  "pages": {
+                    "type": "array",
+                    "items": { "type": "integer", "minimum": 1 },
+                    "description": "Page numbers to edit. If omitted, AI decides which pages to modify."
+                  },
+                  "instructions": {
+                    "type": "string",
+                    "description": "Natural language edit instructions",
+                    "maxLength": 5000
+                  }
+                }
+              },
+              "example": {
+                "pages": [3, 5, 7],
+                "instructions": "Replace the placeholder text with more personal anecdotes"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Page edit started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pages/{num}/fill": {
+      "post": {
+        "operationId": "fill_page",
+        "summary": "Fill a single page with content",
+        "description": "Fills the template slots on a specific page with AI-generated content and selected photos. Costs credits. Returns a job ID.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" },
+          {
+            "name": "num",
+            "in": "path",
+            "required": true,
+            "description": "Page number (1-based)",
+            "schema": { "type": "integer", "minimum": 1 }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "photoIds": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Specific photo IDs to use on this page"
+                  },
+                  "instructions": {
+                    "type": "string",
+                    "description": "Additional instructions for content generation",
+                    "maxLength": 2000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Page fill started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pages/auto-fill": {
+      "post": {
+        "operationId": "auto_fill_pages",
+        "summary": "Auto-fill all unfilled pages",
+        "description": "Automatically fills all pages that have empty template slots with AI-selected photos and generated content. Costs credits. Returns a job ID.",
+        "tags": ["Design & Content"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "description": "AI model override for content generation"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Auto-fill started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "jobId": "job_autofill_abc123",
+                    "estimatedCredits": 2.10
+                  }
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "operationId": "list_products",
+        "summary": "List print-on-demand product catalog",
+        "tags": ["Products"],
+        "responses": {
+          "200": {
+            "description": "Available products for printing memories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Product" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "operationId": "get_product",
+        "summary": "Get product details",
+        "tags": ["Products"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details including variants and pricing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Product" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pod/design": {
+      "post": {
+        "operationId": "pod_design",
+        "summary": "Send a POD design chat message",
+        "description": "Sends a design instruction for print-on-demand product layout. AI generates print-ready HTML optimized for the target product dimensions. Costs credits. Returns a job ID.",
+        "tags": ["POD"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message", "productId"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Design instruction for the print product",
+                    "maxLength": 5000
+                  },
+                  "productId": {
+                    "type": "string",
+                    "description": "Target product ID from the catalog"
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "AI model override"
+                  }
+                }
+              },
+              "example": {
+                "message": "Design a photo book cover with a floral border and our family name in gold script",
+                "productId": "prod_photobook_8x8"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "POD design job started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pod/content": {
+      "post": {
+        "operationId": "pod_content",
+        "summary": "Send a POD content chat message",
+        "description": "Iterates on the print-on-demand product's content (photos, text placement). Costs credits. Returns a job ID.",
+        "tags": ["POD"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "description": "Content instruction for the print product",
+                    "maxLength": 5000
+                  }
+                }
+              },
+              "example": {
+                "message": "Use photos from our wedding day and add a romantic quote on the back cover"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "POD content job started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/pod/print-files": {
+      "post": {
+        "operationId": "generate_print_files",
+        "summary": "Generate print-ready files",
+        "description": "Renders the POD design into high-resolution print files (PNG/PDF) suitable for the fulfillment provider. Returns a job ID.",
+        "tags": ["POD"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "format": {
+                    "type": "string",
+                    "enum": ["png", "pdf"],
+                    "default": "png",
+                    "description": "Output file format"
+                  },
+                  "dpi": {
+                    "type": "integer",
+                    "enum": [150, 300],
+                    "default": 300,
+                    "description": "Print resolution in dots per inch"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Print file generation started",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/JobRef" }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "get": {
+        "operationId": "get_print_files",
+        "summary": "Get print file download URLs",
+        "description": "Returns signed URLs for downloading the generated print files. URLs expire after 1 hour.",
+        "tags": ["POD"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Print file URLs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "files": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "name": { "type": "string", "description": "File name (e.g., front_cover.png)" },
+                                  "url": { "type": "string", "format": "uri", "description": "Signed download URL (expires in 1 hour)" },
+                                  "widthPx": { "type": "integer" },
+                                  "heightPx": { "type": "integer" },
+                                  "dpi": { "type": "integer" },
+                                  "sizeBytes": { "type": "integer" }
+                                }
+                              }
+                            },
+                            "expiresAt": { "type": "string", "format": "date-time" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "files": [
+                      {
+                        "name": "front_cover.png",
+                        "url": "https://r2.memoriesweave.com/print/signed/front_cover.png?token=abc",
+                        "widthPx": 2400,
+                        "heightPx": 2400,
+                        "dpi": 300,
+                        "sizeBytes": 8388608
+                      },
+                      {
+                        "name": "back_cover.png",
+                        "url": "https://r2.memoriesweave.com/print/signed/back_cover.png?token=def",
+                        "widthPx": 2400,
+                        "heightPx": 2400,
+                        "dpi": 300,
+                        "sizeBytes": 6291456
+                      }
+                    ],
+                    "expiresAt": "2026-03-14T13:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces/{wsId}/conversations": {
+      "get": {
+        "operationId": "list_conversations",
+        "summary": "List conversation chunks",
+        "description": "Returns WhatsApp conversation chunks for the workspace, ordered by date. Chunks are created during WhatsApp import processing.",
+        "tags": ["Conversations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Pagination cursor",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum chunks to return (1-100)",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 25 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated list of conversation chunks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ConversationChunk" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces/{wsId}/conversations/search": {
+      "get": {
+        "operationId": "search_conversations_by_date",
+        "summary": "Search conversations by date range",
+        "description": "Returns conversation chunks that fall within the specified date range.",
+        "tags": ["Conversations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" },
+          {
+            "name": "dateFrom",
+            "in": "query",
+            "required": true,
+            "description": "Start date (ISO 8601)",
+            "schema": { "type": "string", "format": "date" }
+          },
+          {
+            "name": "dateTo",
+            "in": "query",
+            "required": true,
+            "description": "End date (ISO 8601)",
+            "schema": { "type": "string", "format": "date" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching conversation chunks",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ConversationChunk" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/workspaces/{wsId}/conversations/by-photo/{photoId}": {
+      "get": {
+        "operationId": "get_conversations_by_photo",
+        "summary": "Get conversations around a photo",
+        "description": "Returns conversation chunks that reference or were sent near the time of the specified photo.",
+        "tags": ["Conversations"],
+        "parameters": [
+          { "$ref": "#/components/parameters/wsId" },
+          {
+            "name": "photoId",
+            "in": "path",
+            "required": true,
+            "description": "Photo ID to find surrounding conversations for",
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation chunks near the photo",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/ConversationChunk" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/memories/{id}/shares": {
+      "post": {
+        "operationId": "create_share",
+        "summary": "Create a share link",
+        "description": "Generates a shareable URL for the memory. Optionally set a password or expiration.",
+        "tags": ["Sharing"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "description": "Optional password to protect the share link"
+                  },
+                  "expiresIn": {
+                    "type": "string",
+                    "description": "Duration until the link expires (e.g., '7d', '30d', 'never')",
+                    "enum": ["1d", "7d", "30d", "90d", "never"],
+                    "default": "30d"
+                  },
+                  "allowDownload": {
+                    "type": "boolean",
+                    "description": "Whether viewers can download the memory as PDF",
+                    "default": true
+                  }
+                }
+              },
+              "example": {
+                "password": "family2025",
+                "expiresIn": "30d",
+                "allowDownload": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Share link created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Share" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "id": "shr_abc123",
+                    "memoryId": "mem_abc123",
+                    "url": "https://memoriesweave.com/s/xK9mP2qL",
+                    "hasPassword": true,
+                    "allowDownload": true,
+                    "expiresAt": "2026-04-13T12:00:00Z",
+                    "viewCount": 0,
+                    "active": true,
+                    "createdAt": "2026-03-14T12:00:00Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      },
+      "get": {
+        "operationId": "list_shares",
+        "summary": "List share links for a memory",
+        "tags": ["Sharing"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Active share links",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Share" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/shares/{id}": {
+      "delete": {
+        "operationId": "deactivate_share",
+        "summary": "Deactivate a share link",
+        "description": "Deactivates the share link so it can no longer be accessed by viewers.",
+        "tags": ["Sharing"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Share deactivated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "active": { "type": "boolean", "const": false }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "operationId": "list_jobs",
+        "summary": "List recent jobs",
+        "description": "Returns recent async jobs for the current user, ordered by creation time (newest first).",
+        "tags": ["Jobs"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Filter by job status",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "running", "completed", "failed", "cancelled"]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum jobs to return (1-100)",
+            "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "array",
+                          "items": { "$ref": "#/components/schemas/Job" }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "get": {
+        "operationId": "get_job",
+        "summary": "Get job status and result",
+        "tags": ["Jobs"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": { "$ref": "#/components/schemas/Job" }
+                      }
+                    }
+                  ]
+                },
+                "example": {
+                  "data": {
+                    "id": "job_gen_abc123",
+                    "type": "generate_memory",
+                    "status": "running",
+                    "progress": 0.65,
+                    "progressMessage": "Filling page 18 of 28...",
+                    "memoryId": "mem_abc123",
+                    "creditsUsed": 0.98,
+                    "createdAt": "2026-03-14T12:00:00Z",
+                    "startedAt": "2026-03-14T12:00:02Z",
+                    "completedAt": null,
+                    "error": null
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    },
+    "/jobs/{id}/cancel": {
+      "post": {
+        "operationId": "cancel_job",
+        "summary": "Cancel a running job",
+        "description": "Requests cancellation of a pending or running job. The job may complete before cancellation takes effect. Credits for partially completed work are still charged.",
+        "tags": ["Jobs"],
+        "parameters": [
+          { "$ref": "#/components/parameters/resourceId" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cancellation requested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/Envelope" },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "status": { "type": "string", "enum": ["cancelled", "completed"] },
+                            "message": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "429": { "$ref": "#/components/responses/RateLimited" },
+          "500": { "$ref": "#/components/responses/InternalError" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "mw_sk_<32hex>",
+        "description": "API key issued from the MemoriesWeave dashboard. Format: `mw_sk_` followed by 32 hexadecimal characters."
+      }
+    },
+    "parameters": {
+      "wsId": {
+        "name": "wsId",
+        "in": "path",
+        "required": true,
+        "description": "Workspace ID",
+        "schema": { "type": "string" },
+        "example": "ws_abc123"
+      },
+      "resourceId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "description": "Resource ID",
+        "schema": { "type": "string" },
+        "example": "ph_abc123"
+      }
+    },
+    "schemas": {
+      "Envelope": {
+        "type": "object",
+        "description": "Standard response envelope wrapping all API responses",
+        "properties": {
+          "data": {
+            "description": "Response payload. Present on success, absent on error."
+          },
+          "error": {
+            "type": "object",
+            "description": "Error details. Present on failure, absent on success.",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Machine-readable error code",
+                "enum": [
+                  "bad_request",
+                  "unauthorized",
+                  "forbidden",
+                  "not_found",
+                  "rate_limited",
+                  "insufficient_credits",
+                  "storage_limit_exceeded",
+                  "internal_error"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable error message"
+              }
+            },
+            "required": ["code", "message"]
+          },
+          "meta": {
+            "type": "object",
+            "description": "Pagination and rate limit metadata",
+            "properties": {
+              "cursor": {
+                "type": "string",
+                "description": "Opaque cursor for the next page of results"
+              },
+              "hasMore": {
+                "type": "boolean",
+                "description": "Whether more results exist beyond the cursor"
+              },
+              "rateLimit": {
+                "type": "object",
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "description": "Maximum requests per minute"
+                  },
+                  "remaining": {
+                    "type": "integer",
+                    "description": "Remaining requests in the current window"
+                  },
+                  "resetAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "When the rate limit window resets"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "name": { "type": "string" },
+          "avatarUrl": { "type": "string", "format": "uri" },
+          "plan": {
+            "type": "string",
+            "enum": ["free", "starter", "pro", "unlimited"],
+            "description": "Current subscription plan"
+          },
+          "storageUsedBytes": { "type": "integer", "description": "Storage used in bytes" },
+          "storageLimitBytes": { "type": "integer", "description": "Storage limit in bytes" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "email", "name", "plan", "storageUsedBytes", "storageLimitBytes", "createdAt"]
+      },
+      "CreditBalance": {
+        "type": "object",
+        "properties": {
+          "subscriptionCredits": {
+            "type": "number",
+            "description": "Credits included with subscription plan (resets monthly)"
+          },
+          "topUpCredits": {
+            "type": "number",
+            "description": "Purchased top-up credits (never expire)"
+          },
+          "totalCredits": {
+            "type": "number",
+            "description": "Total available credits (subscription + top-up)"
+          },
+          "subscriptionResetsAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When subscription credits reset"
+          }
+        },
+        "required": ["subscriptionCredits", "topUpCredits", "totalCredits"]
+      },
+      "UsageSummary": {
+        "type": "object",
+        "properties": {
+          "periodStart": { "type": "string", "format": "date-time" },
+          "periodEnd": { "type": "string", "format": "date-time" },
+          "creditsUsed": { "type": "number" },
+          "photosProcessed": { "type": "integer" },
+          "memoriesGenerated": { "type": "integer" },
+          "apiCalls": { "type": "integer" },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "type": { "type": "string", "enum": ["debit", "credit", "refund"] },
+                "amount": { "type": "number" },
+                "description": { "type": "string" },
+                "createdAt": { "type": "string", "format": "date-time" }
+              }
+            }
+          }
+        },
+        "required": ["periodStart", "periodEnd", "creditsUsed", "photosProcessed", "memoriesGenerated", "apiCalls"]
+      },
+      "Workspace": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "photoCount": { "type": "integer", "description": "Total number of photos" },
+          "memoryCount": { "type": "integer", "description": "Total number of memories" },
+          "storageUsedBytes": { "type": "integer" },
+          "hasConversationData": { "type": "boolean", "description": "Whether WhatsApp conversations have been imported" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "name", "photoCount", "memoryCount", "storageUsedBytes", "createdAt"]
+      },
+      "Photo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "r2Key": { "type": "string", "description": "Storage key in R2" },
+          "url": { "type": "string", "format": "uri", "description": "Full-resolution image URL" },
+          "thumbnailUrl": { "type": "string", "format": "uri", "description": "Thumbnail image URL (WebP, 400px wide)" },
+          "caption": { "type": "string", "description": "AI-generated or manual caption" },
+          "dateTaken": { "type": "string", "format": "date-time", "description": "Date the photo was taken (from EXIF or manual)" },
+          "width": { "type": "integer" },
+          "height": { "type": "integer" },
+          "sizeBytes": { "type": "integer" },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "ready", "error"],
+            "description": "Processing status"
+          },
+          "source": {
+            "type": "string",
+            "enum": ["upload", "whatsapp"],
+            "description": "How the photo was added"
+          },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "User and AI-generated tags"
+          },
+          "people": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Names of people detected or tagged in the photo"
+          },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "workspaceId", "url", "status", "source", "createdAt"]
+      },
+      "Memory": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "designing", "design_approved", "generating", "ready", "error"],
+            "description": "Current state in the creation workflow"
+          },
+          "pageCount": { "type": "integer", "description": "Number of pages in the memory" },
+          "photoCount": { "type": "integer", "description": "Number of photos used" },
+          "hasCustomHtml": { "type": "boolean", "description": "Whether custom HTML has been generated" },
+          "snapshotCount": { "type": "integer", "description": "Number of saved snapshots" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "workspaceId", "title", "status", "createdAt"]
+      },
+      "Snapshot": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "memoryId": { "type": "string" },
+          "label": { "type": "string", "description": "User-provided or auto-generated label" },
+          "pageCount": { "type": "integer" },
+          "sizeBytes": { "type": "integer", "description": "Size of the stored HTML snapshot" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "memoryId", "createdAt"]
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "category": {
+            "type": "string",
+            "enum": ["photo_book", "canvas", "poster", "mug", "phone_case", "card"],
+            "description": "Product category"
+          },
+          "thumbnailUrl": { "type": "string", "format": "uri" },
+          "variants": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "string" },
+                "name": { "type": "string", "description": "Variant name (e.g., '8x8 Hardcover')" },
+                "widthIn": { "type": "number", "description": "Width in inches" },
+                "heightIn": { "type": "number", "description": "Height in inches" },
+                "priceUsd": { "type": "number", "description": "Base price in USD" }
+              }
+            }
+          },
+          "available": { "type": "boolean" }
+        },
+        "required": ["id", "name", "category", "variants", "available"]
+      },
+      "ConversationChunk": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "workspaceId": { "type": "string" },
+          "startDate": { "type": "string", "format": "date-time", "description": "Timestamp of the first message in the chunk" },
+          "endDate": { "type": "string", "format": "date-time", "description": "Timestamp of the last message in the chunk" },
+          "messageCount": { "type": "integer" },
+          "participants": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Names of participants in this chunk"
+          },
+          "hasPhotos": { "type": "boolean", "description": "Whether this chunk contains photo references" },
+          "preview": { "type": "string", "description": "First few lines of the conversation" }
+        },
+        "required": ["id", "workspaceId", "startDate", "endDate", "messageCount"]
+      },
+      "Share": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "memoryId": { "type": "string" },
+          "url": { "type": "string", "format": "uri", "description": "Public share URL" },
+          "hasPassword": { "type": "boolean" },
+          "allowDownload": { "type": "boolean" },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the link expires (null for never)"
+          },
+          "viewCount": { "type": "integer", "description": "Number of times the link has been viewed" },
+          "active": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "memoryId", "url", "hasPassword", "allowDownload", "active", "createdAt"]
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "process_photo",
+              "design_memory",
+              "content_chat",
+              "generate_memory",
+              "add_pages",
+              "edit_pages",
+              "fill_page",
+              "auto_fill_pages",
+              "pod_design",
+              "pod_content",
+              "generate_print_files"
+            ],
+            "description": "Type of async operation"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "running", "completed", "failed", "cancelled"]
+          },
+          "progress": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Progress from 0.0 to 1.0 (null if not trackable)"
+          },
+          "progressMessage": {
+            "type": "string",
+            "description": "Human-readable progress description"
+          },
+          "memoryId": {
+            "type": "string",
+            "description": "Associated memory ID (if applicable)"
+          },
+          "creditsUsed": {
+            "type": "number",
+            "description": "Credits consumed so far"
+          },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "startedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the job began executing"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the job finished (success or failure)"
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message if the job failed"
+          }
+        },
+        "required": ["id", "type", "status", "createdAt"]
+      },
+      "JobRef": {
+        "type": "object",
+        "description": "Reference to an async job, returned when an operation is accepted for processing",
+        "properties": {
+          "jobId": {
+            "type": "string",
+            "description": "Job ID to poll for status via GET /jobs/{id}"
+          },
+          "estimatedCredits": {
+            "type": "number",
+            "description": "Estimated credit cost for this operation"
+          }
+        },
+        "required": ["jobId"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            },
+            "required": ["code", "message"]
+          }
+        },
+        "required": ["error"]
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request parameters or body",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "bad_request",
+                "message": "Parameter 'limit' must be between 1 and 100"
+              }
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid API key",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "unauthorized",
+                "message": "Invalid or expired API key. Provide a valid key in the Authorization header as 'Bearer mw_sk_...'"
+              }
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Insufficient credits or plan does not allow this operation",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "insufficient_credits",
+                "message": "This operation requires approximately 0.35 credits but your balance is 0.12. Top up at https://memoriesweave.com/billing"
+              }
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Resource not found or not accessible",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "not_found",
+                "message": "Resource not found"
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Too many requests. Retry after the time indicated in the Retry-After header.",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds until the rate limit resets",
+            "schema": { "type": "integer" }
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "rate_limited",
+                "message": "Rate limit exceeded. Retry after 23 seconds."
+              }
+            }
+          }
+        }
+      },
+      "InternalError": {
+        "description": "Unexpected server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" },
+            "example": {
+              "error": {
+                "code": "internal_error",
+                "message": "An unexpected error occurred. If the problem persists, contact support."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
