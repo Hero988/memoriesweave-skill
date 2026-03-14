@@ -2,13 +2,13 @@
 name: memoriesweave
 description: Create photo memory collections with AI on MemoriesWeave. Use when the user wants to upload photos, design AI layouts, add captions, manage memories, or order print products via the MemoriesWeave API.
 metadata:
-  version: 1.0.0
+  version: 1.1.0
   author: Hero988
 ---
 
 # MemoriesWeave API Skill
 
-Create and manage photo memory collections programmatically using the MemoriesWeave API.
+Create and manage photo memory collections programmatically using the MemoriesWeave API. You design the HTML layouts yourself — the API gives you access to photos, conversations, workspace context, and people data.
 
 ## Setup
 
@@ -20,7 +20,6 @@ Create and manage photo memory collections programmatically using the MemoriesWe
 ## Authentication
 
 All requests require a Bearer token:
-
 ```
 Authorization: Bearer mw_sk_your_key_here
 ```
@@ -28,104 +27,226 @@ Authorization: Bearer mw_sk_your_key_here
 ## Base URL
 
 ```
-https://grandiose-loris-729.convex.site/api/v1
+https://grandiose-loris-729.eu-west-1.convex.site/api/v1
 ```
 
-## Common Workflows
+## CRITICAL: Required Workflow — Always Gather Context First
 
-### 1. List Your Photos
+Before creating any memory or selecting any photos, you MUST follow this workflow:
+
+### Step 1: Get Workspace Context
+Fetch the workspace description, relationship info, and general instructions. This tells you WHO the people are, what their relationship is, and how the user wants content presented.
 
 ```bash
-# Get workspaces
-curl $BASE_URL/workspaces -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY"
-
-# List photos in a workspace
-curl "$BASE_URL/workspaces/{wsId}/photos?limit=25" \
-  -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY"
+curl "$BASE_URL/workspaces/{wsId}/context" -H "Authorization: Bearer $KEY"
 ```
 
-### 2. Create a Memory
+Returns:
+```json
+{
+  "data": {
+    "description": "Photos with my relationship with Andrea...",
+    "relationshipInfo": "Suliman and Andrea - boyfriend and girlfriend until 30/01/2026...",
+    "generalInstructions": "Always mention Andrea and Suliman if you see them..."
+  }
+}
+```
+
+### Step 2: Get Registered People
+Fetch the people registered in the workspace with their roles and descriptions.
 
 ```bash
-# Create a new memory
+curl "$BASE_URL/workspaces/{wsId}/persons" -H "Authorization: Bearer $KEY"
+```
+
+Returns:
+```json
+{
+  "data": [
+    { "id": "...", "name": "Andrea", "role": "Girlfriend now ex girlfriend best friend", "description": "Girlfriend until 30/01/2026..." },
+    { "id": "...", "name": "Suliman", "role": "Boyfriend...", "description": "..." }
+  ]
+}
+```
+
+### Step 3: Select Photos WITH Conversation Context
+When selecting photos for a memory, do NOT just look at tags. For each candidate photo, check the conversation context around it to understand what was happening when it was shared.
+
+```bash
+# Get conversations around a specific photo
+curl "$BASE_URL/workspaces/{wsId}/conversations/by-photo/{photoId}" \
+  -H "Authorization: Bearer $KEY"
+```
+
+This returns the WhatsApp messages before and after the photo was shared, giving you context about the moment — who was there, what they were talking about, the emotional context.
+
+### Step 4: Choose the Right Digital Format
+Before creating the memory, check available formats with their dimensions:
+
+```bash
+curl "$BASE_URL/digital-formats" -H "Authorization: Bearer $KEY"
+```
+
+**Common formats with multi-page support:**
+| Format | Dimensions | Max Pages |
+|--------|-----------|-----------|
+| Phone Wallpaper (iPhone 16 Pro Max) | 1320x2868 | 10 |
+| Phone Wallpaper (iPhone 15 Pro) | 1290x2796 | 10 |
+| Desktop Wallpaper (4K UHD) | 3840x2160 | 8 |
+| Social Media Post (Instagram) | 1080x1080 | 10 |
+| Story/Reel (Instagram/TikTok) | 1080x1920 | 12 |
+| Greeting Card | 1920x1280 | 4 |
+| Photo Collage | 3000x3000 | 6 |
+
+### Step 5: Create Memory with Format
+Create the memory with the correct digital format and page count:
+
+```bash
 curl -X POST "$BASE_URL/workspaces/{wsId}/memories" \
-  -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY" \
+  -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
-  -d '{"title": "Summer 2025", "description": "Beach vacation photos"}'
-
-# Send a design chat message (AI generates HTML layout)
-curl -X POST "$BASE_URL/memories/{memoryId}/design" \
-  -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Create a warm, sunny photo book with 12 pages"}'
-# Returns: { "data": { "jobId": "...", "pollUrl": "/api/v1/jobs/..." } }
-
-# Poll for completion
-curl "$BASE_URL/jobs/{jobId}" -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY"
+  -d '{
+    "title": "Summer Memories",
+    "description": "Our summer adventures together",
+    "digitalFormat": {
+      "category": "phone_wallpaper",
+      "widthPx": 1290,
+      "heightPx": 2796,
+      "outputFormat": "png",
+      "pageCount": 8
+    }
+  }'
 ```
 
-### 3. Full Generation (Photo Select + Content Fill)
+### Step 6: Design and Push HTML
+You design the HTML yourself. Each page should be wrapped in a `<div data-mw-page="N">` element. The HTML must be self-contained with inline styles.
 
+For multi-page memories, structure as:
+```html
+<div data-mw-page="1" style="width:1290px;height:2796px;position:relative;overflow:hidden;">
+  <!-- Page 1 content with photo background, text overlays, etc. -->
+</div>
+<div data-mw-page="2" style="width:1290px;height:2796px;position:relative;overflow:hidden;">
+  <!-- Page 2 content -->
+</div>
+```
+
+Push the HTML to the memory:
 ```bash
-curl -X POST "$BASE_URL/memories/{memoryId}/generate" \
-  -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY" \
+curl -X PATCH "$BASE_URL/memories/{memoryId}" \
+  -H "Authorization: Bearer $KEY" \
   -H "Content-Type: application/json" \
-  -d '{"prompt": "Our best family moments from 2025"}'
+  -d '{"customHtml": "<your HTML here>"}'
 ```
 
-### 4. Get Memory HTML
+## Photo Selection Best Practices
 
-```bash
-curl "$BASE_URL/memories/{memoryId}/html" \
-  -H "Authorization: Bearer $MEMORIESWEAVE_API_KEY"
-```
+1. **Always check conversation context** for candidate photos before selecting them
+2. **Prefer photos tagged with people names** (e.g., "andrea", "suliman", "couple", "selfie")
+3. **Prefer portrait orientation** for phone wallpapers (height > width)
+4. **Avoid** photos tagged: food, screenshot, meme, document, sticker (unless specifically requested)
+5. **Use medium URLs** for displaying in designs (optimized for web)
+6. **Use original URLs** for high-resolution outputs
+7. **Check the dateTaken** field to ensure photos are from the requested time period
+
+## Photo URLs
+
+Each photo has three URL variants:
+- `urls.thumbnail` — 300px wide WebP (for previews)
+- `urls.medium` — 800px wide WebP (for web display)
+- `urls.original` — Full resolution original (for print/export)
+
+## Complete Endpoint Reference
+
+### Account
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/me` | User info + plan |
+| GET | `/me/credits` | Credit balance |
+| GET | `/me/usage` | Usage summary |
+
+### Workspaces
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/workspaces` | List workspaces |
+| GET | `/workspaces/:id` | Workspace details |
+| GET | `/workspaces/:id/context` | Workspace AI context (description, relationship, instructions) |
+| GET | `/workspaces/:id/persons` | Registered people |
+
+### Digital Formats
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/digital-formats` | All format presets with dimensions |
+
+### Photos
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/workspaces/:wsId/photos` | List photos (paginated, filterable) |
+| GET | `/photos/:id` | Photo details + URLs |
+| POST | `/workspaces/:wsId/photos` | Upload a photo |
+| PATCH | `/photos/:id` | Update metadata |
+| DELETE | `/photos/:id` | Trash a photo |
+
+Query params for listing: `cursor`, `limit` (max 100), `status`, `source`, `tag`, `dateFrom`, `dateTo`
+
+### Memories
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/workspaces/:wsId/memories` | List memories |
+| GET | `/memories/:id` | Memory details |
+| POST | `/workspaces/:wsId/memories` | Create memory (with optional digitalFormat) |
+| PATCH | `/memories/:id` | Update title, description, or customHtml |
+| DELETE | `/memories/:id` | Delete memory |
+| GET | `/memories/:id/html` | Get rendered HTML |
+| GET | `/memories/:id/snapshots` | Version history |
+| POST | `/memories/:id/snapshots` | Create snapshot |
+
+### Conversations
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/workspaces/:wsId/conversations` | List chat chunks |
+| GET | `/workspaces/:wsId/conversations/search?start=TS&end=TS` | Search by date range |
+| GET | `/workspaces/:wsId/conversations/by-photo/:photoId` | Messages around a photo |
+
+### Sharing
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/memories/:id/shares` | Create share link |
+| GET | `/memories/:id/shares` | List shares |
+| DELETE | `/shares/:id` | Deactivate share |
+
+### Products (Physical/Print)
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/products` | Print product catalog |
+| GET | `/products/:id` | Product details |
 
 ## Pricing
 
-- **Free operations:** All GET endpoints, creating/updating/deleting resources
-- **Credit operations:** AI design, content generation, photo captioning
-- Credits shared with website usage (1 credit = $1 USD)
-- Estimated costs: Design chat ~$0.15, Content fill ~$0.10, Photo caption ~$0.005
+- **Free:** All GET endpoints, creating/updating/deleting resources, pushing HTML
+- **Credits:** AI operations only (design chat, content generation, photo captioning)
+- 1 credit = $1 USD, same pool as website
 
 ## Rate Limits
 
-| Plan | General RPM | AI Operations/min |
-|------|------------|-------------------|
+| Plan | General RPM | AI Ops/min |
+|------|------------|-----------|
 | Free | 10 | 2 |
 | Starter | 30 | 5 |
 | Plus | 60 | 10 |
 | Pro | 120 | 20 |
 
-Rate limit headers included in every response: `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `X-RateLimit-Limit`.
-
-## Async Operations
-
-AI operations return immediately with a job ID. Poll `GET /jobs/{jobId}` for status:
-
-```json
-{
-  "data": {
-    "status": "completed",
-    "result": { ... },
-    "actualCredits": 0.12
-  }
-}
-```
-
-Statuses: `pending` → `running` → `completed` | `failed` | `cancelled`
-
 ## Error Codes
 
 | Code | Status | Description |
 |------|--------|-------------|
-| `bad_request` | 400 | Invalid request parameters |
+| `bad_request` | 400 | Invalid parameters |
 | `unauthorized` | 401 | Missing/invalid API key |
-| `forbidden` | 403 | Access denied |
 | `not_found` | 404 | Resource not found |
 | `rate_limited` | 429 | Too many requests |
 | `internal_error` | 500 | Server error |
 
 ## Full API Reference
 
-OpenAPI spec: https://memoriesweave.com/api/openapi.json
-Interactive docs: https://memoriesweave.com/docs/api
+- OpenAPI spec: https://memoriesweave.com/api/openapi.json
+- Interactive docs: https://memoriesweave.com/docs/api
