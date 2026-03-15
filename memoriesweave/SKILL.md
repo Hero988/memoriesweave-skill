@@ -60,9 +60,15 @@ curl -s -X POST "$API/memories/{memoryId}/snapshots" \
 
 Use tag filtering as a starting point, then verify with conversation context.
 
+**IMPORTANT: dateFrom and dateTo must be Unix timestamps in milliseconds, NOT date strings.**
+Example: July 1, 2025 = `1751328000000`, not `2025-07-01`. Calculate with: `new Date("2025-07-01").getTime()`
+
 ```bash
 # Filter by tag (e.g. couple, selfie, portrait, traveling)
 curl -s "$API/workspaces/{wsId}/photos?tag=couple&limit=50" -H "Authorization: Bearer $KEY"
+
+# Filter by date range (Unix ms timestamps)
+curl -s "$API/workspaces/{wsId}/photos?dateFrom=1751328000000&dateTo=1754006400000&limit=50" -H "Authorization: Bearer $KEY"
 
 # If user provides a photo ID, fetch it directly
 curl -s "$API/photos/{photoId}" -H "Authorization: Bearer $KEY"
