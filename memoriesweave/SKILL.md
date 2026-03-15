@@ -215,6 +215,69 @@ Each photo has three variants:
 - `urls.medium` — 800px wide WebP
 - `urls.original` — Full resolution
 
+## Slideshow / Digital Frame Video Export
+
+Render multi-page digital memories as MP4 videos with Ken Burns effects and transitions. Only available for digital memories (not physical products). The rendered video includes AI quality review via Gemini.
+
+### Workflow
+
+1. Design a multi-page memory first (at least 2 pages with `data-mw-page`)
+2. Configure the slideshow:
+   ```bash
+   curl -s -X POST "$API/memories/{memoryId}/slideshow/render" \
+     -H "Authorization: Bearer $KEY" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "resolution": "1920x1080",
+       "reviewModel": "google/gemini-3-flash-preview",
+       "slides": [
+         {"page": 1, "durationSeconds": 6, "kenBurns": {"direction": "zoom_in_center", "intensity": 0.3}, "transition": {"type": "crossfade", "durationSeconds": 1.5}},
+         {"page": 2, "durationSeconds": 5, "kenBurns": {"direction": "pan_left", "intensity": 0.5}, "transition": {"type": "fade_black", "durationSeconds": 2.0}},
+         {"page": 3, "durationSeconds": 7, "kenBurns": {"direction": "zoom_out_center", "intensity": 0.3}}
+       ]
+     }'
+   ```
+3. Poll for completion:
+   ```bash
+   curl -s "$API/memories/{memoryId}/slideshow" -H "Authorization: Bearer $KEY"
+   ```
+4. When status is "completed", download the video from the `videoUrl` field
+5. Read the `reviewFeedback` for quality assessment
+6. If issues are identified, adjust the config and re-render
+
+### Ken Burns Directions
+| Direction | Description | Best for |
+|-----------|-------------|----------|
+| zoom_in_center | Slow zoom into center | Portraits, close-ups |
+| zoom_out_center | Start zoomed, pull out | Group shots, landscapes |
+| pan_left | Pan from right to left | Wide scenes, landscapes |
+| pan_right | Pan from left to right | Wide scenes |
+| pan_up | Pan from bottom to top | Tall subjects |
+| pan_down | Pan from top to bottom | Tall subjects |
+| none | No motion (static) | Text-heavy slides |
+
+### Transition Types
+| Type | FFmpeg Effect | Feel |
+|------|--------------|------|
+| crossfade | Dissolve | Classic, elegant |
+| fade_black | Fade to black | Chapter break |
+| fade_white | Fade to white | Dreamy |
+| slide_left | Slide left | Timeline progression |
+| slide_right | Slide right | Reverse timeline |
+| circle_open | Circle reveal | Nostalgic, vintage |
+| dissolve | Pixel dissolve | Soft, organic |
+| wipe_right | Wipe right | Clean, modern |
+
+### Resolutions
+| Resolution | Label | Best for |
+|-----------|-------|----------|
+| 1920x1080 | Full HD | Digital frames, Chromecast, most TVs |
+| 3840x2160 | 4K UHD | Samsung Frame TV, 4K displays |
+
+### Pricing
+- **Rendering:** Free (compute only, no AI cost)
+- **AI Review:** Gemini Flash ~$0.04/review, Gemini Pro ~$0.10/review (credits deducted with 2x markup)
+
 ## Endpoint reference
 
 ### Account
@@ -266,6 +329,13 @@ Each photo has three variants:
 |--------|----------|-------------|
 | GET | `/digital-formats` | All format presets with dimensions |
 | GET | `/products` | Print product catalog |
+
+### Slideshow (digital memories only)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/memories/:id/slideshow/render` | Trigger slideshow video render with Ken Burns + transitions |
+| GET | `/memories/:id/slideshow` | Get slideshow render status + video download URL |
+| GET | `/slideshow/presets` | List available Ken Burns, transition, and resolution presets |
 
 ### Screenshot (uses website domain, not API domain)
 | Method | URL | Description |
