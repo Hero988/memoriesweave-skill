@@ -161,6 +161,8 @@ curl -s "https://www.memoriesweave.com/api/screenshot?memoryId={memoryId}&page=1
   -H "Authorization: Bearer $KEY"
 ```
 
+Optional query params: `widthPx` and `heightPx` to override dimensions (useful for physical products where dimensions come from the product specs, not digitalFormat). Example: `&widthPx=3772&heightPx=5250` for wall calendars.
+
 Returns `{ "data": { "screenshotUrl": "https://..." } }`. Download and view the screenshot. Check that:
 - All photos are visible (no broken image icons)
 - Photos show the correct people/content
