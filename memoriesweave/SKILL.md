@@ -191,6 +191,22 @@ curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY
 
 **Always unlock when done**, even if an error occurred.
 
+## Creating physical product memories
+
+To create a memory for a physical product (canvas print, poster, calendar, etc.):
+
+1. Get the product list: `GET /products`
+2. Create the memory with `mode: "physical"` and `productId`:
+   ```bash
+   curl -s -X POST "$API/workspaces/{wsId}/memories" \
+     -H "Authorization: Bearer $KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"title": "My Canvas Print", "mode": "physical", "productId": "<product_id_from_products_list>"}'
+   ```
+3. The API automatically creates a pod design session with the correct product dimensions and print specs.
+4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar).
+5. The memory can then be ordered through the website's print flow.
+
 ## Product-specific rules
 
 **Wall calendars** MUST always have exactly **14 pages**: cover + 12 months (Jan-Dec) + back page. Each month page needs a correct calendar grid with proper day-of-week starts. Dimensions: `3772x5250px`. Never use duplicate photos across pages. Every photo on relationship months must show the people (not food, scenery, or screenshots).
@@ -309,7 +325,7 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 |--------|----------|-------------|
 | GET | `/workspaces/:wsId/memories` | List memories |
 | GET | `/memories/:id` | Memory details |
-| POST | `/workspaces/:wsId/memories` | Create memory. Body: `title`, `description`, optional `digitalFormat` |
+| POST | `/workspaces/:wsId/memories` | Create memory. Body: `title`, `description`, optional `mode` ("digital"\|"physical"), optional `productId` (required if physical), optional `digitalFormat` |
 | PATCH | `/memories/:id` | Update `title`, `description`, `customHtml`, or `digitalFormat` |
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
