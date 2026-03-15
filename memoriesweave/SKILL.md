@@ -166,6 +166,9 @@ Returns `{ "data": { "screenshotUrl": "https://..." } }`. Download and view the 
 - Photos show the correct people/content
 - No duplicate-looking photos on the same page
 - Text is readable and correctly positioned
+- **Captions match the actual photo they appear under** — you cannot determine which photo is in which position from HTML order alone. You MUST screenshot the page and visually confirm that each caption describes the photo it appears next to. Tags can be misleading (e.g. a "couple selfie on a bridge" might be tagged "coffee date" if they were near a cafe).
+
+**When editing captions:** ALWAYS screenshot the page BEFORE changing any caption text. Look at the screenshot to understand which photo is in position 1, 2, and 3. Then match your caption to what you actually see in the screenshot.
 
 ### Step 8: Save an "after" snapshot
 
