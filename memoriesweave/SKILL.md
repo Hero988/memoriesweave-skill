@@ -204,7 +204,7 @@ To create a memory for a physical product (canvas print, poster, calendar, photo
      -d '{"title": "My Canvas Print", "mode": "physical", "productId": "<product_id_from_products_list>"}'
    ```
 3. The API automatically creates a pod design session with the correct product dimensions and print specs.
-4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar, 2575x3402 for hardcover photo book).
+4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar, 3402x3402 for hardcover photo book).
 5. The memory can then be ordered through the website's print flow.
 
 ### Product response fields
@@ -220,13 +220,13 @@ Each product from `GET /products` includes:
 
 **Wall calendars** MUST always have exactly **14 pages**: cover + 12 months (Jan-Dec) + back page. Each month page needs a correct calendar grid with proper day-of-week starts. Dimensions: `3772x5250px`. Never use duplicate photos across pages. Every photo on relationship months must show the people (not food, scenery, or screenshots).
 
-**Hardcover photo books** (Gelato) have **30-200 pages**. Dimensions: `2575x3402px` (8x11" with 4mm bleed at 300 DPI). The first page (`data-mw-page="1"`) is the **front cover** and the last page is the **back cover**. Inner pages are content pages. When generating print files, the system automatically:
+**Hardcover photo books** (Gelato) have **30-200 pages**. Dimensions: `3402x3402px` (11x11" with 4mm bleed at 300 DPI). The first page (`data-mw-page="1"`) is the **front cover** and the last page is the **back cover**. Inner pages are content pages. When generating print files, the system automatically:
 - Composites front + back covers into a Gelato-ready cover spread (with calculated spine width)
 - Adds blank endpaper pages
 - Assembles a multi-page PDF for Gelato production
 - Also provides individual PNG files + ZIP for proofing
 
-Available sizes: 5.5x5.5" (140x140mm), 8x8" (200x200mm), **8x11" (210x280mm, default)**, 10x10" (250x250mm), 11x11" (280x280mm).
+Available sizes: 5.5x5.5" (140x140mm), 8x8" (200x200mm), 8x11" (210x280mm), 10x10" (250x250mm), **11x11" (280x280mm, default)**.
 
 Paper: 170gsm coated silk, matte lamination cover, glued binding, 300 DPI. Never use duplicate photos across pages. Each page should feature unique content and photos from different events.
 
