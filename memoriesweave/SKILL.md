@@ -193,7 +193,7 @@ curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY
 
 ## Creating physical product memories
 
-To create a memory for a physical product (canvas print, poster, calendar, etc.):
+To create a memory for a physical product (canvas print, poster, calendar, photo book, etc.):
 
 1. Get the product list: `GET /products`
 2. Create the memory with `mode: "physical"` and `productId`:
@@ -204,12 +204,31 @@ To create a memory for a physical product (canvas print, poster, calendar, etc.)
      -d '{"title": "My Canvas Print", "mode": "physical", "productId": "<product_id_from_products_list>"}'
    ```
 3. The API automatically creates a pod design session with the correct product dimensions and print specs.
-4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar).
+4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar, 2575x3402 for hardcover photo book).
 5. The memory can then be ordered through the website's print flow.
+
+### Product response fields
+
+Each product from `GET /products` includes:
+- `provider` — `"printful"` or `"gelato"` (determines print fulfillment partner)
+- `bleedMm` — bleed margin in mm (5 for Printful, 4 for Gelato)
+- `pageCountMin` / `pageCountMax` — valid page range for variable-page products (null for fixed)
+- `fileFormat` — `"png"` for Printful products, `"pdf"` for Gelato photo books
+- `variants[]` — available size options with per-variant dimensions and pricing
 
 ## Product-specific rules
 
 **Wall calendars** MUST always have exactly **14 pages**: cover + 12 months (Jan-Dec) + back page. Each month page needs a correct calendar grid with proper day-of-week starts. Dimensions: `3772x5250px`. Never use duplicate photos across pages. Every photo on relationship months must show the people (not food, scenery, or screenshots).
+
+**Hardcover photo books** (Gelato) have **30-200 pages**. Dimensions: `2575x3402px` (8x11" with 4mm bleed at 300 DPI). The first page (`data-mw-page="1"`) is the **front cover** and the last page is the **back cover**. Inner pages are content pages. When generating print files, the system automatically:
+- Composites front + back covers into a Gelato-ready cover spread (with calculated spine width)
+- Adds blank endpaper pages
+- Assembles a multi-page PDF for Gelato production
+- Also provides individual PNG files + ZIP for proofing
+
+Available sizes: 5.5x5.5" (140x140mm), 8x8" (200x200mm), **8x11" (210x280mm, default)**, 10x10" (250x250mm), 11x11" (280x280mm).
+
+Paper: 170gsm coated silk, matte lamination cover, glued binding, 300 DPI. Never use duplicate photos across pages. Each page should feature unique content and photos from different events.
 
 **Phone wallpapers** support up to 10 pages. Each page is a standalone wallpaper at the device's resolution.
 
