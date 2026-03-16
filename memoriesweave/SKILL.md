@@ -231,6 +231,28 @@ Paper: Premium Lustre 148gsm, ImageWrap hardcover, 300 DPI. Pricing in GBP (£28
 
 **Phone wallpapers** support up to 10 pages. Each page is a standalone wallpaper at the device's resolution.
 
+## Bulk export endpoints
+
+For large projects (e.g., 240-page photo books), use the export endpoints to get ALL data in one call:
+
+**Photo export** — `GET /workspaces/:wsId/photos/export?dateFrom=TS&dateTo=TS`
+- Returns ALL photos (no pagination cap, no 100-item limit)
+- Each photo includes a `persons[]` array: `[{id, name, confidence}]` — who is in the photo
+- Use `persons` to prioritize photos (e.g., couple together > person alone > other)
+- Response: `{ data: [...], meta: { total: N } }`
+
+**Conversation export** — `GET /workspaces/:wsId/conversations/export?dateFrom=TS&dateTo=TS`
+- Returns ALL conversation chunks (no pagination cap)
+- Each chunk has a `textUrl` — fetch it to get full message text
+- Response: `{ data: [...], meta: { total: N } }`
+
+**Per-page HTML push** — `PATCH /memories/:id/pages/:pageNum` with `{"html": "..."}`
+- Push one page at a time instead of the entire HTML in one PATCH
+- Automatically wraps in `<div data-mw-page="N">` if not present
+- Creates or replaces the page; appends if new
+- Returns `{ pageNumber, totalPages }` so you can track progress
+- Pages can be pushed in any order (not necessarily sequential)
+
 ## Photo selection rules
 
 1. **Always check conversation context** around candidate photos before selecting them.
@@ -335,6 +357,7 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/workspaces/:wsId/photos` | List photos. Params: `cursor`, `limit`, `tag`, `dateFrom`, `dateTo` |
+| GET | `/workspaces/:wsId/photos/export` | **Bulk export** ALL photo metadata (no pagination cap). Includes `persons[]` array. Params: `dateFrom`, `dateTo` |
 | GET | `/photos/:id` | Single photo details and URLs |
 | PATCH | `/photos/:id` | Update caption or tags |
 
@@ -347,6 +370,7 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | PATCH | `/memories/:id` | Update `title`, `description`, `customHtml`, or `digitalFormat` |
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
+| PATCH | `/memories/:id/pages/:pageNum` | **Push HTML for a single page**. Body: `{"html": "<div>..."}`. Returns `{pageNumber, totalPages}` |
 | POST | `/memories/:id/lock` | Show AI working overlay on frontend |
 | POST | `/memories/:id/unlock` | Remove AI working overlay |
 | GET | `/memories/:id/snapshots` | List version history |
@@ -357,6 +381,7 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/workspaces/:wsId/conversations` | List chat chunks |
+| GET | `/workspaces/:wsId/conversations/export` | **Bulk export** ALL conversation chunks (no pagination cap). Includes `textUrl` for each chunk. Params: `dateFrom`, `dateTo` |
 | GET | `/workspaces/:wsId/conversations/search?start=TS&end=TS` | Search by date range |
 | GET | `/workspaces/:wsId/conversations/by-photo/:photoId` | Messages around a photo |
 
