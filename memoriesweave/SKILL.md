@@ -204,31 +204,30 @@ To create a memory for a physical product (canvas print, poster, calendar, photo
      -d '{"title": "My Canvas Print", "mode": "physical", "productId": "<product_id_from_products_list>"}'
    ```
 3. The API automatically creates a pod design session with the correct product dimensions and print specs.
-4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar, 3402x3402 for hardcover photo book).
+4. Push HTML with `PATCH /memories/{id}` using the product's pixel dimensions (e.g., 9000x7200 for canvas print, 3772x5250 for wall calendar, 3075x2475 for hardcover photo book).
 5. The memory can then be ordered through the website's print flow.
 
 ### Product response fields
 
 Each product from `GET /products` includes:
-- `provider` — `"printful"` or `"gelato"` (determines print fulfillment partner)
-- `bleedMm` — bleed margin in mm (5 for Printful, 4 for Gelato)
+- `provider` — `"printful"`, `"blurb"`, or `"gelato"` (determines print fulfillment)
+- `bleedMm` — bleed margin in mm (5 for Printful, 3.175 for Blurb)
 - `pageCountMin` / `pageCountMax` — valid page range for variable-page products (null for fixed)
-- `fileFormat` — `"png"` for Printful products, `"pdf"` for Gelato photo books
+- `fileFormat` — `"png"` for Printful products, `"pdf"` for Blurb photo books
 - `variants[]` — available size options with per-variant dimensions and pricing
 
 ## Product-specific rules
 
 **Wall calendars** MUST always have exactly **14 pages**: cover + 12 months (Jan-Dec) + back page. Each month page needs a correct calendar grid with proper day-of-week starts. Dimensions: `3772x5250px`. Never use duplicate photos across pages. Every photo on relationship months must show the people (not food, scenery, or screenshots).
 
-**Hardcover photo books** (Gelato) have **30-200 pages**. Dimensions: `3402x3402px` (11x11" with 4mm bleed at 300 DPI). The first page (`data-mw-page="1"`) is the **front cover** and the last page is the **back cover**. Inner pages are content pages. When generating print files, the system automatically:
-- Composites front + back covers into a Gelato-ready cover spread (with calculated spine width)
-- Adds blank endpaper pages
-- Assembles a multi-page PDF for Gelato production
+**Hardcover photo books** (Blurb) have **20-240 pages**. Dimensions: `3075x2475px` (10×8" Standard Landscape with 3.175mm/0.125" bleed at 300 DPI). All pages are interior content pages. Users download the generated PDF and upload to Blurb via "PDF to Book" (blurb.co.uk/pdf-to-book), where they design the cover separately. When generating print files, the system automatically:
+- Assembles all pages into a sequential multi-page PDF (interior pages only)
+- Pads to even page count if needed (Blurb requirement)
 - Also provides individual PNG files + ZIP for proofing
 
-Available sizes: 5.5x5.5" (140x140mm), 8x8" (200x200mm), 8x11" (210x280mm), 10x10" (250x250mm), **11x11" (280x280mm, default)**.
+Available sizes: 7×7" (18×18cm), 8×10" (20×25cm), **10×8" (25×20cm, default)**, 12×12" (30×30cm), 13×11" (33×28cm).
 
-Paper: 170gsm coated silk, matte lamination cover, glued binding, 300 DPI. Never use duplicate photos across pages. Each page should feature unique content and photos from different events.
+Paper: Premium Lustre 148gsm, ImageWrap hardcover, 300 DPI. Pricing in GBP (£28.00 base for 10×8", £0.34/extra page). Never use duplicate photos across pages. Each page should feature unique content and photos from different events.
 
 **Phone wallpapers** support up to 10 pages. Each page is a standalone wallpaper at the device's resolution.
 
