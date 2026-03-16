@@ -233,18 +233,26 @@ Paper: Premium Lustre 148gsm, ImageWrap hardcover, 300 DPI. Pricing in GBP (£28
 
 ## Bulk export endpoints
 
-For large projects (e.g., 240-page photo books), use the export endpoints to get ALL data in one call:
+For large projects (e.g., 240-page photo books), use the export endpoints to get ALL data in one call.
+
+**CRITICAL — BANDWIDTH WARNING:** Export endpoints read the ENTIRE workspace catalog from the database. Each call costs significant database bandwidth (~5-7 MB for photos, ~1 MB for conversations). You MUST:
+1. **Call each export endpoint AT MOST ONCE per session** — never re-fetch what you already have
+2. **Cache the results in memory** for the duration of your work — reference the cached data for all subsequent operations
+3. **Use `dateFrom`/`dateTo` filters** when you only need a subset (e.g., a single month) to reduce bandwidth
+4. **Never call exports in a loop or retry** — if the call succeeds, you have everything
 
 **Photo export** — `GET /workspaces/:wsId/photos/export?dateFrom=TS&dateTo=TS`
 - Returns ALL photos (no pagination cap, no 100-item limit)
 - Each photo includes a `persons[]` array: `[{id, name, confidence}]` — who is in the photo
 - Use `persons` to prioritize photos (e.g., couple together > person alone > other)
 - Response: `{ data: [...], meta: { total: N } }`
+- **Call once, cache the result, reference from cache for all page designs**
 
 **Conversation export** — `GET /workspaces/:wsId/conversations/export?dateFrom=TS&dateTo=TS`
 - Returns ALL conversation chunks (no pagination cap)
 - Each chunk has a `textUrl` — fetch it to get full message text
 - Response: `{ data: [...], meta: { total: N } }`
+- **Call once, cache the result, reference from cache for all page designs**
 
 **Per-page HTML push** — `PATCH /memories/:id/pages/:pageNum` with `{"html": "..."}`
 - Push one page at a time instead of the entire HTML in one PATCH
