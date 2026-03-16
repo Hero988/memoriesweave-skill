@@ -443,6 +443,119 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | Plus | 300 | 10 |
 | Pro | 600 | 20 |
 
+## Conversation Summaries
+
+Generate personalized summaries from WhatsApp conversations at any granularity — by day, by month, by year, or for a custom date range. The agent reads conversations, understands what happened, and writes warm, factual summaries suitable for scrapbooks, photo books, and memory collections.
+
+### Summary types
+
+The user can request any of these:
+
+| Type | User says | What it produces |
+|------|-----------|-----------------|
+| **Day summaries** | "Create day summaries from April to January" | One summary per day — what happened that specific day |
+| **Month summaries** | "Summarise each month from April to January" | One summary per month — the highlights, milestones, and themes of that month |
+| **Year summary** | "Give me a year summary of our conversations" | One overall summary — the full story arc across the entire period |
+| **Custom range** | "Summarise what happened between June 10 and June 20" | One summary covering that specific date range |
+
+**Day summaries** produce a `title` (2-3 words), `titleLine2` (1-3 words), and `summary` (1-3 sentences).
+**Month summaries** produce a `title`, `titleLine2`, and `summary` (3-5 sentences covering key events, milestones, and the mood of that month).
+**Year summaries** produce a `title`, `titleLine2`, and `summary` (5-10 sentences telling the full story arc).
+**Custom range** produces a `title`, `titleLine2`, and `summary` (length proportional to the range — 1-3 sentences for a few days, more for longer ranges).
+
+All summaries follow the same quality rules: third person, factual, specific, warm and nostalgic.
+
+### Workflow: Generating summaries
+
+When the user asks for summaries (e.g., "create day summaries from April to January" or "summarise each month"), follow these steps:
+
+**Step 1: Export conversations to local .txt files**
+
+```bash
+# Get all conversations with inline text
+curl -s "$API/workspaces/{wsId}/conversations/export?dateFrom=TS&dateTo=TS" \
+  -H "Authorization: Bearer $KEY" > convos_export.json
+```
+
+Then group by date into monthly .txt files for easy reading:
+```javascript
+// Group conversation text by date, save as monthly .txt files
+// Each date section starts with: ========== YYYY-MM-DD ==========
+// Contains the FULL conversation text for that day (no truncation)
+```
+
+Save as `convos_YYYY-MM.txt` (e.g., `convos_2025-04.txt`). Include ALL message text — never truncate.
+
+**Step 2: Generate summaries by reading conversations**
+
+Read the actual conversation text and write summaries. Each summary has:
+- `title`: First line of a decorative title (2-3 words, e.g., "Sweet Mornings")
+- `titleLine2`: Second line (1-3 words, e.g., "& Missing You")
+- `summary`: Description of what ACTUALLY happened. Must be:
+  - Written in **third person** (use actual names, not "I" or "you")
+  - **Specific** — reference real places, events, quotes from the conversation
+  - **Factual** — only include what is explicitly stated in messages
+  - **Warm and nostalgic** — like a scrapbook caption looking back
+
+**For day summaries:** Process one day at a time. Use parallel agents (one per 2 months) for speed. Each agent reads the .txt files and saves to a separate JSON file (e.g., `summaries_apr_may.json`). Summary length: 1-3 sentences.
+
+**For month summaries:** Read ALL conversations for that month. Identify the key events, milestones, recurring themes, and emotional arc. Summary length: 3-5 sentences. Title should capture the month's main theme (e.g., "The Month We" / "Fell in Love" or "Exams &" / "Adventures").
+
+**For year summaries:** Read conversations across the full period (or use the day/month summaries as input). Tell the complete story arc — how it started, key milestones, how the relationship evolved. Summary length: 5-10 sentences. Title should capture the overall journey (e.g., "Our Story" / "300 Days").
+
+**For custom range summaries:** Read conversations in the specified range. Length proportional to the range — a few days gets 1-3 sentences, a few weeks gets 3-5.
+
+**Step 3: Verify summaries (CRITICAL — run at least 2 passes)**
+
+Launch verification agents that re-read each day's conversation and check every claim in the summary:
+
+1. Is every fact directly supported by a message?
+2. Is every event on the correct date? (Messages after midnight = next day)
+3. Is anything fabricated, assumed, or embellished?
+4. Is anything from an adjacent day bleeding in?
+5. Who said what — correct attribution?
+6. "Planned" vs "actually happened" accurately distinguished?
+
+Common AI errors to watch for (from experience with 94 corrections across 5 passes):
+- **Date bleeding** (~30%): Messages after midnight attributed to wrong day
+- **Fabricated details** (~20%): AI inventing names, places, events not in text
+- **Planned vs happened** (~15%): Saying they did something they only discussed
+- **Wrong attribution** (~10%): Mixing up who said what
+- **Adjacent day bleed** (~10%): Details from wrong day
+- **Embellishment** (~10%): Adding unsupported adjectives/details
+- **Wrong specifics** (~5%): Incorrect amounts, times, place names
+
+Run multiple verification passes until a pass comes back with 0-2 fixes. Minimum 2 passes recommended, 3-5 for print-quality output.
+
+**Step 4: Merge and save**
+
+Merge all per-month files into a single `day_summaries.json`. Generate a review HTML for the user to browse.
+
+**Step 5: Create review HTML**
+
+Build a browsable HTML file showing all summaries so the user can review before applying:
+```html
+<!-- Each day shown as a card with date, title, and summary -->
+<div class="day">
+  <div class="day-date">2025-04-12</div>
+  <div class="day-title">The First Date</div>
+  <div class="day-summary">Their very first date! Both nervous, both excited...</div>
+</div>
+```
+
+### Using day summaries in photo books
+
+When integrating summaries into photo book pages, render them as **Polaroid Story Cards** — a Polaroid-shaped card with:
+- Watercolor wash background (layered CSS radial gradients)
+- "this day was about" header in small Playfair Display caps
+- Big decorative title in Dancing Script (line 1 in espresso, line 2 in rose)
+- Gold divider (line + ✦ + line)
+- Summary text in Caveat cursive, centered
+- Handwritten caption at Polaroid bottom
+
+For **single-day pages**: caption says "a day to remember"
+For **multi-day pages**: each day gets its own card with "our 3rd May" / "our 4th May" captions
+
 ## Error codes
 
 | Code | Status | Meaning |
