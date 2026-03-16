@@ -255,11 +255,14 @@ For large projects (e.g., 240-page photo books), use the export endpoints to get
 - **Call once, cache the result, reference from cache for all page designs**
 
 **Per-page HTML push** — `PATCH /memories/:id/pages/:pageNum` with `{"html": "..."}`
+- Each page is stored as its own ~5KB document in the database (no 1MB field limit)
 - Push one page at a time instead of the entire HTML in one PATCH
 - Automatically wraps in `<div data-mw-page="N">` if not present
-- Creates or replaces the page; appends if new
+- Creates or replaces the page (upsert by memoryId + pageNumber)
 - Returns `{ pageNumber, totalPages }` so you can track progress
 - Pages can be pushed in any order (not necessarily sequential)
+- `GET /memories/:id/html` automatically concatenates all pages in order
+- Screenshots load individual pages efficiently (no need to load entire book)
 
 ## Photo selection rules
 
