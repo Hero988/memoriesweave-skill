@@ -250,7 +250,7 @@ For large projects (e.g., 240-page photo books), use the export endpoints to get
 
 **Conversation export** — `GET /workspaces/:wsId/conversations/export?dateFrom=TS&dateTo=TS`
 - Returns ALL conversation chunks (no pagination cap)
-- Each chunk has a `textUrl` — fetch it to get full message text
+- Each chunk includes `text` (full inline message content) AND `textUrl` (fallback URL)
 - Response: `{ data: [...], meta: { total: N } }`
 - **Call once, cache the result, reference from cache for all page designs**
 
@@ -262,7 +262,20 @@ For large projects (e.g., 240-page photo books), use the export endpoints to get
 - Returns `{ pageNumber, totalPages }` so you can track progress
 - Pages can be pushed in any order (not necessarily sequential)
 - `GET /memories/:id/html` automatically concatenates all pages in order
-- Screenshots load individual pages efficiently (no need to load entire book)
+- Screenshots and print file generation load individual pages efficiently
+
+**Batch page push** — `PATCH /memories/:id/pages/batch` with `{"pages": [{"pageNumber": N, "html": "..."}, ...]}`
+- Push up to 50 pages at once (reduces 233 API calls → ~5 calls)
+- Same upsert behavior as single-page push
+- Returns `{ pagesUpserted, totalPages }`
+
+**Delete all pages** — `DELETE /memories/:id/pages`
+- Removes all HTML pages for a memory (clean slate for redesigns)
+- Returns `{ deletedCount }`
+
+**Set page count** — `PATCH /memories/:id` with `{"pageCount": N}`
+- Sets the expected page count on the memory document
+- UI and print pipeline use this to know how many pages to expect without scanning
 
 ## Photo selection rules
 
@@ -382,6 +395,8 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
 | PATCH | `/memories/:id/pages/:pageNum` | **Push HTML for a single page**. Body: `{"html": "<div>..."}`. Returns `{pageNumber, totalPages}` |
+| PATCH | `/memories/:id/pages/batch` | **Batch push up to 50 pages**. Body: `{"pages": [{pageNumber, html}, ...]}`. Returns `{pagesUpserted, totalPages}` |
+| DELETE | `/memories/:id/pages` | **Delete all HTML pages** for a memory. Returns `{deletedCount}` |
 | POST | `/memories/:id/lock` | Show AI working overlay on frontend |
 | POST | `/memories/:id/unlock` | Remove AI working overlay |
 | GET | `/memories/:id/snapshots` | List version history |
@@ -421,12 +436,12 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 
 ## Rate limits
 
-| Plan | Requests/min | AI ops/min |
+| Plan | CRUD ops/min | AI ops/min |
 |------|-------------|-----------|
-| Free | 10 | 2 |
-| Starter | 30 | 5 |
-| Plus | 60 | 10 |
-| Pro | 120 | 20 |
+| Free | 60 | 2 |
+| Starter | 120 | 5 |
+| Plus | 300 | 10 |
+| Pro | 600 | 20 |
 
 ## Error codes
 
