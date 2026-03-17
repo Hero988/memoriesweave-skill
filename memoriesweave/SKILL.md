@@ -254,20 +254,16 @@ For large projects (e.g., 240-page photo books), use the export endpoints to get
 - Response: `{ data: [...], meta: { total: N } }`
 - **Call once, cache the result, reference from cache for all page designs**
 
-**Per-page HTML push** — `PATCH /memories/:id/pages/:pageNum` with `{"html": "..."}`
+**Page HTML push** — `PATCH /memories/:id/pages/batch` with `{"pages": [{"pageNumber": N, "html": "..."}, ...]}`
+- Push 1-50 pages at once. Even for a single page, always use the batch endpoint.
 - Each page is stored as its own ~5KB document in the database (no 1MB field limit)
-- Push one page at a time instead of the entire HTML in one PATCH
 - Automatically wraps in `<div data-mw-page="N">` if not present
-- Creates or replaces the page (upsert by memoryId + pageNumber)
-- Returns `{ pageNumber, totalPages }` so you can track progress
+- Creates or replaces each page (upsert by memoryId + pageNumber)
 - Pages can be pushed in any order (not necessarily sequential)
+- Returns `{ pagesUpserted, totalPages }`
+- After writing, automatically syncs the combined HTML to the design session
 - `GET /memories/:id/html` automatically concatenates all pages in order
 - Screenshots and print file generation load individual pages efficiently
-
-**Batch page push** — `PATCH /memories/:id/pages/batch` with `{"pages": [{"pageNumber": N, "html": "..."}, ...]}`
-- Push up to 50 pages at once (reduces 233 API calls → ~5 calls)
-- Same upsert behavior as single-page push
-- Returns `{ pagesUpserted, totalPages }`
 
 **Delete all pages** — `DELETE /memories/:id/pages`
 - Removes all HTML pages for a memory (clean slate for redesigns)
@@ -394,8 +390,7 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | PATCH | `/memories/:id` | Update `title`, `description`, `customHtml`, or `digitalFormat` |
 | DELETE | `/memories/:id` | Delete memory |
 | GET | `/memories/:id/html` | Get rendered HTML |
-| PATCH | `/memories/:id/pages/:pageNum` | **Push HTML for a single page**. Body: `{"html": "<div>..."}`. Returns `{pageNumber, totalPages}` |
-| PATCH | `/memories/:id/pages/batch` | **Batch push up to 50 pages**. Body: `{"pages": [{pageNumber, html}, ...]}`. Returns `{pagesUpserted, totalPages}` |
+| PATCH | `/memories/:id/pages/batch` | **Push 1-50 pages**. Body: `{"pages": [{pageNumber, html}, ...]}`. Returns `{pagesUpserted, totalPages}`. Syncs to design session automatically. |
 | DELETE | `/memories/:id/pages` | **Delete all HTML pages** for a memory. Returns `{deletedCount}` |
 | POST | `/memories/:id/lock` | Show AI working overlay on frontend |
 | POST | `/memories/:id/unlock` | Remove AI working overlay |
