@@ -553,66 +553,134 @@ For **multi-day pages**: each day gets its own card with "our 3rd May" / "our 4t
 
 ## Blurb BookWright Photo Book Export
 
-When the user wants to export a photo book memory to a physical Blurb hardcover book, follow this automated pipeline. The input is the memory's HTML (fetched via `GET /memories/:id/html`), and the output is a `.blurb` file ready to open in BookWright.
+When the user wants to convert a photo book memory HTML into a physical Blurb hardcover book, follow this automated pipeline. The user just says "make this into a photobook" and we handle everything.
+
+### Blurb Book Specifications (exact settings used for ordering)
+
+| Setting | Value |
+|---------|-------|
+| **Cover type** | Hardcover, ImageWrap |
+| **Size** | Standard Landscape, 10×8 in (25×20 cm) |
+| **Paper** | Premium Paper, lustre finish (148gsm Premium Lustre) |
+| **Cover finish** | Matte |
+| **Blurb logo** | Custom Logo Upgrade (remove Blurb logo page) |
+| **End sheets** | Standard Mid-Grey |
+| **Page count** | 20-240 (must be even) |
+| **Page dimensions** | 3075×2475px (10.25×8.25" at 300 DPI, includes bleed) |
+| **SKU** | `PHBK-1000x0800-IW-PPRLS` |
+| **Pricing** | From £28.00 base + £0.34/extra page (before discounts) |
+| **Product page** | https://www.blurb.co.uk/photo-books/imagewrap-hardcover-photo-book |
 
 ### Prerequisites
 
 - Node.js + Playwright (`npx playwright install`)
-- Python 3 (built-in `sqlite3`)
-- A Blurb BookWright project file created with: 25x20cm, Premium Lustre, Matte, 20 pages
+- Python 3 (built-in `sqlite3`, `Pillow` for image processing)
+- Blurb BookWright desktop app installed (download from blurb.co.uk)
+- A BookWright project created with: Size 25×20cm, Premium Lustre, Matte, 20 pages starting count
+
+### Critical: Print Safe Zone
+
+BookWright's `autolayout="fill"` crops **94px from each side** of 3075px-wide images. The print trim removes additional margin. To prevent ANY content from being clipped, **wrap all page content in a `scale(0.91)` transform** before rendering:
+
+```python
+# For each page div in the HTML, insert a wrapper after the opening tag:
+wrapper = '<div style="position:absolute;inset:0;transform:scale(0.91);transform-origin:center center;">'
+# Close the wrapper before the page's closing </div>
+```
+
+This scales all content to 91% and centers it, creating ~138px of safe margin on all edges. This is the ONLY reliable method — shifting individual CSS properties misses elements.
 
 ### Automated Pipeline
 
 **Step 1: Fetch the HTML from the memory**
 
 ```bash
-curl -s "$API/memories/{memoryId}/html" -H "Authorization: Bearer $KEY" > photobook.html
+# The API returns a URL to the HTML file, then download it
+curl -s "$API/memories/{memoryId}/html" -H "Authorization: Bearer $KEY"
+# Response: {"data":{"type":"url","url":"https://...convex.cloud/api/storage/..."}}
+# Download the actual HTML from the storage URL
+curl -s "STORAGE_URL" > photobook.html
 ```
 
-**Step 2: Create a working copy and upgrade image URLs for print**
+**Step 2: Apply print safe zone + upgrade image URLs**
 
-```bash
-cp photobook.html blurb-print-version.html
-sed -i 's/-thumb\.webp/.jpg/g' blurb-print-version.html
-sed -i 's/-medium\.webp/.jpg/g' blurb-print-version.html
+```python
+# 1. Wrap ALL page content in scale(0.91) wrapper for print safety
+# 2. Replace -thumb.webp and -medium.webp with .jpg for print quality
+# 3. If page 1 is a title page matching the cover, remove it (cover handles it)
 ```
 
-**Step 3: Render each page as a high-quality JPEG (3075x2475px)**
+**Step 3: Pre-download all images locally**
+
+Images from the R2 CDN can timeout during rendering. Download ALL unique image URLs to a local folder first, then replace CDN URLs with `file://` paths in the HTML:
+
+```javascript
+// Extract all unique CDN URLs from HTML
+// Download each to local-images/ folder (parallel batches of 20)
+// IMPORTANT: Some -thumb.webp files don't have .jpg equivalents
+// If a downloaded file is HTML (error page), re-download as original .webp format
+// Replace all CDN URLs in HTML with file:// local paths
+```
+
+**Step 4: Render each page as a high-quality JPEG (3075×2475px)**
 
 Use Playwright to screenshot each `data-mw-page` div:
 - Wrap the raw HTML in a `<html>` document with Google Fonts `@import`
-- Set viewport to 3075x2475, deviceScaleFactor 1
+- Set viewport to 3075×2475, deviceScaleFactor 1
 - For each page: show only that page (CSS `.active` class), wait for images to load, screenshot as JPEG quality 95
 - Save to `blurb-pages/page_001.jpg` through `page_NNN.jpg`
+- Use 3-second timeout per image (local files load instantly)
 
 Fonts to import: Dancing Script, Caveat, Nunito, Playfair Display, Patrick Hand, Lora.
 
-**Step 4: Build the .blurb SQLite file**
+**Step 5: Build the .blurb SQLite file**
 
-The `.blurb` file is a SQLite database. Image resolution chain (all three must match):
+The `.blurb` file is a SQLite database with two tables: `ArchiveVersion` (version=4) and `Files` (filepath, filecontent BLOB, filesize, filedate).
+
+Image resolution chain (all three MUST match or images show as "Drag an image here"):
 ```
 bbf2.xml:           <image src="{guid}.jpg"/>           ← GUID only, no path prefix
-media_registry.xml: <media guid="{guid}" ext="jpg"/>    ← same GUID
+media_registry.xml: <media guid="{guid}" ext="jpg"/>    ← same GUID, use <media> NOT <image>
 Files table:        filepath = "images/{guid}.jpg"      ← WITH "images/" prefix
                     filepath = "thumbnails/{guid}.jpg"   ← WITH "thumbnails/" prefix
 ```
 
-Key values for 10x8" ImageWrap:
+Key values for the XML layout:
 - BookWright page: width=693, height=594 (points at 72 DPI)
 - SKU: `PHBK-1000x0800-IW-PPRLS`
 - Image fill scale: `594/2475 = 0.24`
 - Image x-offset: `-22.5` (centers the slightly-wider image)
-- Page count must be even (add blank page if odd)
-- Use `<media>` elements in media_registry (NOT `<image>`)
+- Page count must be even (add blank page at end if odd)
 - Schema version: `2.11`, Archive version: `4`
+- Include `.version` file with content `4`
+- Cover sections: SC, DJ, IW (keep default dimensions, BookWright recalculates for page count)
 
-**Step 5: Open in BookWright, review, and order**
+**Step 6: Add cover images**
 
-BookWright may recalculate cover dimensions for the new page count. The user designs the cover in BookWright, reviews all pages, and orders.
+Render front and back cover designs as JPEGs and add them to the IW coversheet in the XML. Add the cover image files to both `images/` and `thumbnails/` paths in the Files table, and register them in `media_registry.xml`.
+
+**Step 7: Open in BookWright, review, and order**
+
+1. Open the `.blurb` file in BookWright
+2. BookWright recalculates cover/spine dimensions for the page count
+3. Click **Review & Upload** — verify no clipping in the print preview
+4. Upload and order (check blurb.co.uk/promo for discount codes — Blurb frequently runs 20-30% off)
+5. Select: Qty 2, Custom Logo Upgrade (remove Blurb logo), Standard Mid-Grey End Sheets
+
+### Troubleshooting
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| "Drag an image here" on all pages | Image resolution chain broken | Ensure `bbf2.xml` src, `media_registry.xml` guid, and `Files.filepath` all use the same GUID |
+| Content clipped in print preview | Elements in bleed zone | Apply `scale(0.91)` wrapper to ALL page content |
+| Broken image icons (small white rectangles) | CDN images timed out during render | Pre-download ALL images locally, replace URLs with `file://` paths |
+| Some `.jpg` downloads are HTML error pages | Original was `-thumb.webp` with no `.jpg` equivalent | Re-download as `.webp` format instead |
+| Empty space on pages | Changed page width from 3075 to smaller value | Keep pages at 3075px, use `scale(0.91)` wrapper instead |
+| "You forgot to design a cover" warning | No cover images in IW coversheet | Add front/back cover JPEGs to the coversheet XML |
 
 ### Full implementation details
 
-See `docs/BLURB_BOOKWRIGHT_EXPORT.md` for complete code, troubleshooting, and specs.
+See `docs/BLURB_BOOKWRIGHT_EXPORT.md` for complete code examples and the `.blurb` file format specification.
 
 ## Error codes
 
