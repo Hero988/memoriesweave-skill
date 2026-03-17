@@ -551,6 +551,69 @@ When integrating summaries into photo book pages, render them as **Polaroid Stor
 For **single-day pages**: caption says "a day to remember"
 For **multi-day pages**: each day gets its own card with "our 3rd May" / "our 4th May" captions
 
+## Blurb BookWright Photo Book Export
+
+When the user wants to export a photo book memory to a physical Blurb hardcover book, follow this automated pipeline. The input is the memory's HTML (fetched via `GET /memories/:id/html`), and the output is a `.blurb` file ready to open in BookWright.
+
+### Prerequisites
+
+- Node.js + Playwright (`npx playwright install`)
+- Python 3 (built-in `sqlite3`)
+- A Blurb BookWright project file created with: 25x20cm, Premium Lustre, Matte, 20 pages
+
+### Automated Pipeline
+
+**Step 1: Fetch the HTML from the memory**
+
+```bash
+curl -s "$API/memories/{memoryId}/html" -H "Authorization: Bearer $KEY" > photobook.html
+```
+
+**Step 2: Create a working copy and upgrade image URLs for print**
+
+```bash
+cp photobook.html blurb-print-version.html
+sed -i 's/-thumb\.webp/.jpg/g' blurb-print-version.html
+sed -i 's/-medium\.webp/.jpg/g' blurb-print-version.html
+```
+
+**Step 3: Render each page as a high-quality JPEG (3075x2475px)**
+
+Use Playwright to screenshot each `data-mw-page` div:
+- Wrap the raw HTML in a `<html>` document with Google Fonts `@import`
+- Set viewport to 3075x2475, deviceScaleFactor 1
+- For each page: show only that page (CSS `.active` class), wait for images to load, screenshot as JPEG quality 95
+- Save to `blurb-pages/page_001.jpg` through `page_NNN.jpg`
+
+Fonts to import: Dancing Script, Caveat, Nunito, Playfair Display, Patrick Hand, Lora.
+
+**Step 4: Build the .blurb SQLite file**
+
+The `.blurb` file is a SQLite database. Image resolution chain (all three must match):
+```
+bbf2.xml:           <image src="{guid}.jpg"/>           ← GUID only, no path prefix
+media_registry.xml: <media guid="{guid}" ext="jpg"/>    ← same GUID
+Files table:        filepath = "images/{guid}.jpg"      ← WITH "images/" prefix
+                    filepath = "thumbnails/{guid}.jpg"   ← WITH "thumbnails/" prefix
+```
+
+Key values for 10x8" ImageWrap:
+- BookWright page: width=693, height=594 (points at 72 DPI)
+- SKU: `PHBK-1000x0800-IW-PPRLS`
+- Image fill scale: `594/2475 = 0.24`
+- Image x-offset: `-22.5` (centers the slightly-wider image)
+- Page count must be even (add blank page if odd)
+- Use `<media>` elements in media_registry (NOT `<image>`)
+- Schema version: `2.11`, Archive version: `4`
+
+**Step 5: Open in BookWright, review, and order**
+
+BookWright may recalculate cover dimensions for the new page count. The user designs the cover in BookWright, reviews all pages, and orders.
+
+### Full implementation details
+
+See `docs/BLURB_BOOKWRIGHT_EXPORT.md` for complete code, troubleshooting, and specs.
+
 ## Error codes
 
 | Code | Status | Meaning |
