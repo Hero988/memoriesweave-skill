@@ -412,6 +412,17 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 | GET | `/digital-formats` | All format presets with dimensions |
 | GET | `/products` | Print product catalog |
 
+### Conversation summaries
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/workspaces/:wsId/summaries` | List summaries. Params: `type` (day\|week\|biweekly\|month\|year\|custom), `dateFrom` (YYYY-MM-DD), `dateTo` (YYYY-MM-DD) |
+| GET | `/workspaces/:wsId/summaries/:periodKey` | Get single summary by periodKey (e.g. `day:2025-04-06`) |
+| GET | `/workspaces/:wsId/summaries/export` | **Bulk export** ALL summaries of a type (no pagination cap). Params: `type` (required) |
+| GET | `/workspaces/:wsId/summaries/volumes` | List generation volumes (jobs). Returns volume number, period type, date range, status, stats |
+| GET | `/workspaces/:wsId/summaries/volumes/:volumeId` | Get single volume details + all its summaries |
+| GET | `/workspaces/:wsId/summaries/date-range` | Get min/max dates of available conversation data |
+| GET | `/workspaces/:wsId/summaries/counts` | Count summaries by type: `{day: N, week: N, month: N, ...}` |
+
 ### Slideshow (digital memories only)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -440,11 +451,9 @@ Render multi-page digital memories as MP4 videos with Ken Burns effects and tran
 
 ## Conversation Summaries
 
-Generate personalized summaries from WhatsApp conversations at any granularity — by day, by month, by year, or for a custom date range. The agent reads conversations, understands what happened, and writes warm, factual summaries suitable for scrapbooks, photo books, and memory collections.
+Warm, factual summaries of WhatsApp conversations at any granularity — by day, by month, by year, or for a custom date range. Suitable for scrapbooks, photo books, and memory collections.
 
 ### Summary types
-
-The user can request any of these:
 
 | Type | User says | What it produces |
 |------|-----------|-----------------|
@@ -453,16 +462,80 @@ The user can request any of these:
 | **Year summary** | "Give me a year summary of our conversations" | One overall summary — the full story arc across the entire period |
 | **Custom range** | "Summarise what happened between June 10 and June 20" | One summary covering that specific date range |
 
-**Day summaries** produce a `title` (2-3 words), `titleLine2` (1-3 words), and `summary` (1-3 sentences).
-**Month summaries** produce a `title`, `titleLine2`, and `summary` (3-5 sentences covering key events, milestones, and the mood of that month).
-**Year summaries** produce a `title`, `titleLine2`, and `summary` (5-10 sentences telling the full story arc).
-**Custom range** produces a `title`, `titleLine2`, and `summary` (length proportional to the range — 1-3 sentences for a few days, more for longer ranges).
+Each summary has: `title` (2-3 words), `titleLine2` (1-3 words), `summary` (length varies by type), `startDate`, `endDate`, `periodKey`, `status`.
 
-All summaries follow the same quality rules: third person, factual, specific, warm and nostalgic.
+### Two options for getting summaries
 
-### Workflow: Generating summaries
+The user chooses which approach they want:
 
-When the user asks for summaries (e.g., "create day summaries from April to January" or "summarise each month"), follow these steps:
+---
+
+#### Option A: Fetch existing summaries from the website (recommended)
+
+If the user has already generated summaries on memoriesweave.com (via the website's + Generate button), fetch them directly from the API. This is faster, cheaper, and the summaries have already been AI-verified.
+
+The user tells you which summaries to use by either:
+- Giving you a **volume ID** (copied from the website UI — e.g., `vol:jd7a83kxyz...`): "Use the summaries from this volume: vol:jd7a83kxyz..."
+- Specifying a **type and date range**: "Get my day summaries from April to June"
+- Saying **"use existing summaries"** or **"fetch my summaries"**
+
+**How to fetch:**
+
+```bash
+# 1. Check what summaries exist
+curl -s "$API/workspaces/{wsId}/summaries/counts" \
+  -H "Authorization: Bearer $KEY"
+# Returns: {"data": {"day": 25, "week": 0, "month": 3, "year": 1, ...}}
+
+# 2. List volumes (generation batches) — shows what was generated and when
+curl -s "$API/workspaces/{wsId}/summaries/volumes" \
+  -H "Authorization: Bearer $KEY"
+# Returns volumes with: volumeNumber, periodType, dateFrom, dateTo, status, completedPeriods, totalPeriods
+
+# 3a. Get all summaries from a specific volume
+curl -s "$API/workspaces/{wsId}/summaries/volumes/{volumeId}" \
+  -H "Authorization: Bearer $KEY"
+# Returns volume details + all its summaries
+
+# 3b. OR list summaries by type + optional date range
+curl -s "$API/workspaces/{wsId}/summaries?type=day&dateFrom=2025-04-06&dateTo=2025-04-30" \
+  -H "Authorization: Bearer $KEY"
+# Returns array of summaries matching the filter
+
+# 3c. OR bulk export ALL summaries of a type
+curl -s "$API/workspaces/{wsId}/summaries/export?type=day" \
+  -H "Authorization: Bearer $KEY"
+# Returns all summaries (no pagination cap) — best for large sets
+
+# 4. Get a single summary by periodKey
+curl -s "$API/workspaces/{wsId}/summaries/day:2025-04-06" \
+  -H "Authorization: Bearer $KEY"
+# Returns: {title, titleLine2, summary, startDate, endDate, status, ...}
+```
+
+Each summary object looks like:
+```json
+{
+  "periodKey": "day:2025-04-06",
+  "periodType": "day",
+  "startDate": "2025-04-06",
+  "endDate": "2025-04-06",
+  "title": "First Chats",
+  "titleLine2": "Cat Cafe Plans",
+  "summary": "Their very first conversation — both had never dated before...",
+  "status": "verified",
+  "messageCount": 163,
+  "verificationPasses": 2
+}
+```
+
+---
+
+#### Option B: Generate summaries manually (agent does the work)
+
+If the user hasn't generated summaries on the website yet, or wants the agent to create them from scratch by reading the raw conversations. This is slower but doesn't require any prior setup on the website.
+
+The user says things like: "Create day summaries for me from April to January", "Write summaries yourself from the conversations"
 
 **Step 1: Export conversations to local .txt files**
 
