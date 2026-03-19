@@ -903,28 +903,55 @@ Launch verification agents that re-read conversation text and check EVERY claim:
 
 **Minimum 2 verification passes.** Fix all issues before building HTML.
 
+#### 7b. Gather extra quotes for decorative elements
+
+Before building HTML, search conversations for 15-20 SHORT heartfelt quotes (under 25 words each) from both people, spread across all months. These fill the "dead space" between sections as floating quote strips, interludes, and quote mosaics — making the page feel rich and personal.
+
+Look for: terms of endearment, "I miss you" variants, funny moments, inside jokes, declarations of love, short sweet messages.
+
 #### 8. Build the HTML
 
-Self-contained HTML with all CSS/JS inline. Wrapped in `<div data-mw-page="1">`.
+Self-contained HTML with **only CSS** — no JavaScript at all. Wrapped in `<div data-mw-page="1">`.
 
-**Structure:**
-1. **Hero** — Big gold number (month count), subtitle in Dancing Script, names line, 5-photo circular strip
-2. **Stats bar** — Static values (messages, photos, days, months, cities). **NO count-up animations.**
-3. **Month timeline** — Alternating left/right cards. Each has: circular photo, month name + emoji, message count (no sentiment), italic insight, 2 message bubbles, sparkline
-4. **Highlights** — 3 cards: best message (chat bubble), journey numbers (label/value rows), best chapter (date + description + stat pills)
-5. **Footer** — "Woven with love by MemoriesWeave" + names + days tagline
+**Design direction: "Cinematic Love Letter"** — luxury magazine editorial crossed with a love letter. Rich, intimate, layered. NO dead space.
 
-**CRITICAL iframe rules:**
-- **NO IntersectionObserver** — doesn't fire in sandboxed iframes. All elements `opacity: 1` by default
-- **NO `requestAnimationFrame` count-ups** — use static text values
-- **`setTimeout` works** — use for sparkline draw, confetti timing
-- **Web Animations API works** — `element.animate()` for confetti burst
+**Page structure (8 sections):**
+1. **Hero** — Massive gold-gradient number (250px Playfair Display) with glow pulse animation, Dancing Script subtitle, tracked Nunito names, gold shimmer divider lines, row of 5 circular photos with individual float animations
+2. **Quote strip** — Full-width glassmorphism strip with a beautiful quote, giant decorative open-quote watermark, breathe animation
+3. **Stats bar** — 5 stats with gold gradient numbers in Playfair, staggered reveal animations, gold divider lines between
+4. **Month timeline** — Vertical gold-gradient line with pulsing dots. Each month card has: **large 220px featured photo** (not a tiny thumbnail) with zoom-on-hover, mood-colored dot badge, italic Cormorant Garamond insight, dual message bubbles (rose-left, gold-right tints). **4 Memory Interludes** between month groups — full-width photo + quote pairs in glassmorphic frames
+5. **Quote mosaic** — 3x2 grid of 6 short quote cards with staggered reveal, decorative watermarks, different color tints per person
+6. **Highlights** — 3 editorial cards: best message (chat bubble), journey numbers (stats table), best chapter (narrative + photo)
+7. **Closing photo mosaic** — Creative asymmetric grid of 4 photos with staggered rotation reveals and caption overlay
+8. **Footer** — Gradient cursive names + MemoriesWeave credit
+
+**Typography:**
+- Cormorant Garamond — elegant serif for insights and body (more refined than Lora)
+- Dancing Script — romantic script accents
+- Playfair Display — bold serif for headings and the big number
+- Nunito — clean sans for UI labels
+
+**13+ CSS animations (all pure `@keyframes`, no JS):**
+`heroScale`, `glowPulse`, `floatPhoto1-5`, `shimmer`, `revealUp`, `breathe`, `timelinePulse`, `quoteReveal`, `fadeInScale`, `mosaicReveal1-4`, `goldLine`, `particleDrift`
+
+Plus `@supports (animation-timeline: view())` for scroll-driven reveals on Chrome 115+.
+
+**CRITICAL DOMPurify rules (the iframe strips these — do NOT use):**
+- **NO `<script>` tags** — ALL JavaScript is removed by DOMPurify
+- **NO `<canvas>`** — not in allowed tags
+- **NO `<defs>`, `<linearGradient>`, `<stop>`** — stripped. Use solid `rgba()` fills instead
+- **NO `id` attributes** — stripped. Use `class` only
+- **NO `data-sentiment`** or custom `data-*` — use CSS classes like `mood-high`, `mood-mid`, `mood-low`
+- **NO `preserveAspectRatio`** on SVG — stripped
+- SVG stroke properties must be in `style="..."` attribute
+- **ONLY allowed tags:** html, head, body, style, link, meta, div, span, p, h1-h6, img, a, section, article, header, footer, svg, path, circle, rect, table, tr, td, th, ul, ol, li, etc.
 - **Google Fonts via `@import`** in `<style>` tag, not `<link>` tags
-- **No sentiment bars** — just message count
 
-**Design system:** Dark theme with MemoriesWeave colors (--bg: #1A1215, --gold: #C5A55A, --dusty-rose: #C4897B). Fonts: Dancing Script, Playfair Display, Lora, Nunito.
+**CSS particles (replace canvas):** Use `::before` pseudo-element with `radial-gradient` dot pattern and `particleDrift` keyframe animation.
 
-**Responsive breakpoints:** 1024px, 900px, 600px, 400px. Timeline goes single-column below 900px. Stats wrap to 2-per-row below 600px.
+**Responsive breakpoints:** 1024px, 900px, 600px, 400px. Stats wrap, photos shrink, timeline stays single-column.
+
+**Full implementation details:** See `docs/PERIOD_IN_REVIEW_PIPELINE.md`
 
 #### 9. Push, verify, finalize
 
