@@ -755,6 +755,206 @@ Render front and back cover designs as JPEGs and add them to the IW coversheet i
 
 See `docs/BLURB_BOOKWRIGHT_EXPORT.md` for complete code examples and the `.blurb` file format specification.
 
+## Workflow: Period in Review
+
+Creates a personalized, scrollable "Period in Review" digital memory — a beautiful dark-themed timeline page with month-by-month insights, real conversation quotes, photos, and highlights. Everything is fact-checked against the actual WhatsApp messages.
+
+### When to use
+
+The user says things like:
+- "Create a review of our 10 months together"
+- "Make a period in review from April 2025 to January 2026"
+- "Create the full review for this workspace"
+- "Make a year in review" / "Make our story"
+
+### What the user must specify
+
+The user **must** provide one of:
+- **"Full period"** / **"everything"** — use the workspace context's `relationshipInfo` to extract start/end dates automatically
+- **Specific dates** — e.g., "from 06/04/2025 to 30/01/2026" (parse as DD/MM/YYYY UK format)
+
+If the user doesn't specify, ask them: *"Would you like the full period review (covering your entire time together), or a review for specific dates?"*
+
+### Step-by-step pipeline
+
+#### 1. Determine the date range
+
+```bash
+# Get workspace context to find relationship dates
+curl -s "$API/workspaces/{wsId}/context" -H "Authorization: Bearer $KEY"
+# Look at relationshipInfo field for start/end dates
+
+# Get persons
+curl -s "$API/workspaces/{wsId}/persons" -H "Authorization: Bearer $KEY"
+```
+
+Calculate:
+- Number of months covered (this becomes the hero number)
+- Number of days between dates (e.g., 299)
+- Unix millisecond timestamps for `dateFrom`/`dateTo` in API calls
+- Cities they visited TOGETHER (only cities confirmed from conversations — do not assume)
+
+#### 2. Create memory, lock it, save before-snapshot
+
+```bash
+curl -s -X POST "$API/workspaces/{wsId}/memories" \
+  -H "Authorization: Bearer $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Our First N Months — Name1 & Name2", "mode": "digital"}'
+
+curl -s -X POST "$API/memories/{memoryId}/lock" -H "Authorization: Bearer $KEY"
+
+curl -s -X POST "$API/memories/{memoryId}/snapshots" \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"label": "Before — initial empty memory"}'
+```
+
+#### 3. Export ALL data (call each ONCE, cache to disk)
+
+```bash
+# Photos — includes persons[] array showing who is in each photo
+curl -s "$API/workspaces/{wsId}/photos/export?dateFrom={ts}&dateTo={ts}" \
+  -H "Authorization: Bearer $KEY" > /tmp/photos.json
+
+# Conversations — full message text inline
+curl -s "$API/workspaces/{wsId}/conversations/export?dateFrom={ts}&dateTo={ts}" \
+  -H "Authorization: Bearer $KEY" > /tmp/convos.json
+
+# Day summaries (if any exist — check counts first)
+curl -s "$API/workspaces/{wsId}/summaries/counts" -H "Authorization: Bearer $KEY"
+# If day count > 0:
+curl -s "$API/workspaces/{wsId}/summaries/export?type=day" -H "Authorization: Bearer $KEY" > /tmp/summaries.json
+```
+
+**NEVER re-fetch exports.** Cache locally and reference from cache for all subsequent operations.
+
+#### 4. Select best photos per month
+
+Use parallel agents (one per task) for efficiency. For each month:
+
+**Scoring algorithm:**
+| Criteria | Points |
+|----------|--------|
+| Both persons in `persons[]` array | +200 |
+| One person (primary) | +80 |
+| Tags: romantic, joyful, traveling, celebration | +15 each |
+| Person confidence × 30 | variable |
+
+**Disqualifiers:** tags `food`, `screenshot`, `meme`, `document`, `sticker`, `illustration`
+
+**Deduplication:** Photos with `dateTaken` within 5 minutes = same event. Keep only one.
+
+Select top 3 per month. Ensure variety (different dates/events).
+
+#### 5. Verify every selected photo
+
+```bash
+# For each photo ID selected:
+curl -s "$API/photos/{photoId}" -H "Authorization: Bearer $KEY"
+```
+
+Confirm: exists, `dateTaken` matches intended month, extract `urls.original`.
+
+**NEVER use URLs from the export directly — always verify via individual GET.**
+
+#### 6. Analyze conversations per month
+
+Use parallel agents (one per 2-3 months). For each month, read 4-6 conversation chunks. Extract:
+
+| Field | Description |
+|-------|-------------|
+| `emoji` | One emoji representing the month's theme |
+| `theme` | 2-4 word label (e.g., "Nervous beginnings bloom") |
+| `insight` | 1-2 sentence summary, third person, warm/nostalgic, specific |
+| `memorableMessage` | **EXACT quote** from conversations (search for literal match) |
+| `messageSender` | Who said it |
+| `totalMessages` | Sum of `messageCount` across chunks |
+| `keyEvent` | Most notable event that actually happened |
+
+**Rules:**
+- Only include REAL quotes — must be exact text from a message
+- Write insights in third person using actual names
+- Reference real places, events, dates
+- Distinguish "planned" vs "actually happened"
+- If someone retells a past story, do NOT present it as a current event
+- If day summaries exist for that month, prefer those over raw conversation reading
+
+#### 7. Fact-check EVERYTHING (mandatory — do not skip)
+
+Launch verification agents that re-read conversation text and check EVERY claim:
+
+| Check | What to look for |
+|-------|-----------------|
+| Every quote | Search for exact text. Note if it's actually multiple messages merged |
+| Every event | Did it actually happen, or was it just discussed? |
+| Every date | Correct day? Messages after midnight = next day |
+| Every place | Actually mentioned in messages? |
+| Past vs present | Is an anecdote being retold, or did it happen this month? |
+| Corrections | If someone says "30 min" then corrects to "20", use corrected value |
+| Numbers | Calculate day counts mathematically. Don't round 299 to 300 |
+
+**Common fabrication patterns:**
+- Date bleeding (~30%): wrong day attribution
+- Fabricated details (~20%): inventing names/places/events
+- Planned vs happened (~15%): saying they did something they only discussed
+- Past stories as current (~10%): retold anecdote framed as recent event
+
+**Minimum 2 verification passes.** Fix all issues before building HTML.
+
+#### 8. Build the HTML
+
+Self-contained HTML with all CSS/JS inline. Wrapped in `<div data-mw-page="1">`.
+
+**Structure:**
+1. **Hero** — Big gold number (month count), subtitle in Dancing Script, names line, 5-photo circular strip
+2. **Stats bar** — Static values (messages, photos, days, months, cities). **NO count-up animations.**
+3. **Month timeline** — Alternating left/right cards. Each has: circular photo, month name + emoji, message count (no sentiment), italic insight, 2 message bubbles, sparkline
+4. **Highlights** — 3 cards: best message (chat bubble), journey numbers (label/value rows), best chapter (date + description + stat pills)
+5. **Footer** — "Woven with love by MemoriesWeave" + names + days tagline
+
+**CRITICAL iframe rules:**
+- **NO IntersectionObserver** — doesn't fire in sandboxed iframes. All elements `opacity: 1` by default
+- **NO `requestAnimationFrame` count-ups** — use static text values
+- **`setTimeout` works** — use for sparkline draw, confetti timing
+- **Web Animations API works** — `element.animate()` for confetti burst
+- **Google Fonts via `@import`** in `<style>` tag, not `<link>` tags
+- **No sentiment bars** — just message count
+
+**Design system:** Dark theme with MemoriesWeave colors (--bg: #1A1215, --gold: #C5A55A, --dusty-rose: #C4897B). Fonts: Dancing Script, Playfair Display, Lora, Nunito.
+
+**Responsive breakpoints:** 1024px, 900px, 600px, 400px. Timeline goes single-column below 900px. Stats wrap to 2-per-row below 600px.
+
+#### 9. Push, verify, finalize
+
+```bash
+# Push HTML
+curl -s -X PATCH "$API/memories/{memoryId}/pages/batch" \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d @/tmp/push_body.json
+
+# Screenshot to verify
+curl -s "https://www.memoriesweave.com/api/screenshot?memoryId={memoryId}&page=1" \
+  -H "Authorization: Bearer $KEY"
+
+# Save after-snapshot
+curl -s -X POST "$API/memories/{memoryId}/snapshots" \
+  -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"label": "After — complete period review with verified content"}'
+
+# Unlock
+curl -s -X POST "$API/memories/{memoryId}/unlock" -H "Authorization: Bearer $KEY"
+```
+
+#### 10. Give the user the link
+
+```
+https://www.memoriesweave.com/workspace/{wsId}/memories/{memoryId}
+```
+
+### Full implementation details
+
+See `docs/PERIOD_IN_REVIEW_PIPELINE.md` for complete CSS templates, JS code, HTML templates for every section, and all lessons learned.
+
 ## Error codes
 
 | Code | Status | Meaning |
