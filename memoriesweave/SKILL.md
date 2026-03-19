@@ -125,6 +125,8 @@ If the API returns empty results for a time period, try different search strateg
 
 ### Step 6: Design HTML and push
 
+**Note:** Custom HTML is rendered inside a sandboxed iframe with DOMPurify sanitization. All `<script>` tags, `<canvas>`, `<iframe>`, and event handler attributes are stripped. Only CSS-based animations work (use `@keyframes`, `animation-delay`, and `@supports (animation-timeline: view())` for scroll-driven effects). Do not rely on any JavaScript for interactivity or animations — it will be silently removed.
+
 Design self-contained HTML with inline styles. For multi-page memories, wrap each page in `<div data-mw-page="N">`.
 
 ```bash
